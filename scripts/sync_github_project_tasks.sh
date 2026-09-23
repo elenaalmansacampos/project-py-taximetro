@@ -139,9 +139,9 @@ main() {
     issue_url="$(create_issue "$code" "$title" "$phase" "$priority" | tail -n 1)"
     echo "Añadiendo al Project: [$code] $title"
     gh project item-add "$PROJECT_NUMBER" --owner "$OWNER" --url "$issue_url" >/dev/null || true
-    set_field_if_exists "$issue_url" "Status" "$phase"
+    set_field_if_exists "$issue_url" "Status" "Backlog"
     set_field_if_exists "$issue_url" "Fase" "$phase"
-    set_field_if_exists "$issue_url" "Prioridad" "$priority"
+    set_field_if_exists "$issue_url" "Priority" "$priority"
   done
 
   echo "Tareas sincronizadas."
