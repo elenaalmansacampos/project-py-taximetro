@@ -5,13 +5,15 @@ from unittest.mock import MagicMock, call, patch
 
 from taximeter import cli
 from taximeter.config import Rates
-from taximeter.taximeter import TaxiStatus
+from taximeter.taximeter import TaxiStatus, TripSummary
 
 
 def _run_cli(
     commands: tuple[str, ...],
     start_error: Exception | None = None,
     status_error: Exception | None = None,
+    finish_error: Exception | None = None,
+    finish_summary: TripSummary | None = None,
 ) -> tuple[MagicMock, str, MagicMock]:
     rates = Rates(stopped_rate_per_second=0.02, moving_rate_per_second=0.05)
     output = io.StringIO()
@@ -34,6 +36,10 @@ def _run_cli(
             taximeter.start_trip.side_effect = start_error
         if status_error is not None:
             taximeter.set_status.side_effect = status_error
+        if finish_error is not None:
+            taximeter.finish_trip.side_effect = finish_error
+        if finish_summary is not None:
+            taximeter.finish_trip.return_value = finish_summary
 
         cli.run_cli()
 
@@ -91,6 +97,26 @@ class CliStatusChangeTest(unittest.TestCase):
         self.assertIn("Error: No hay ninguna carrera activa", output)
         log_exception.assert_called_once_with("operation_error")
         taximeter.set_status.assert_called_once_with(TaxiStatus.MOVING)
+
+
+class CliFinishTripTest(unittest.TestCase):
+    def test_finishes_trip_with_all_aliases_and_prints_total(self) -> None:
+        summary = TripSummary(duration_seconds=30, amount=1.20)
+
+        for command in ("f", "fin", "  FIN  "):
+            with self.subTest(command=command):
+                taximeter, output, _ = _run_cli((command,), finish_summary=summary)
+
+                taximeter.finish_trip.assert_called_once_with()
+                self.assertIn("Total a cobrar: 1.20 EUR", output)
+
+    def test_reports_error_when_there_is_no_active_trip(self) -> None:
+        _, output, log_exception = _run_cli(
+            ("fin",), finish_error=RuntimeError("No hay ninguna carrera activa")
+        )
+
+        self.assertIn("Error: No hay ninguna carrera activa", output)
+        log_exception.assert_called_once_with("operation_error")
 
 
 if __name__ == "__main__":

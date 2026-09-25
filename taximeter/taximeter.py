@@ -46,7 +46,8 @@ class Taximeter:
 
     def current_amount(self) -> float:
         self._require_active_trip()
-        return round(self._amount + self._elapsed_amount(), 2)
+        now = self.clock()
+        return round(self._amount + self._elapsed_amount(now), 2)
 
     def elapsed_seconds(self) -> float:
         self._require_active_trip()
@@ -54,8 +55,9 @@ class Taximeter:
 
     def finish_trip(self) -> TripSummary:
         self._require_active_trip()
-        self._charge_elapsed_time()
-        duration = self.clock() - self._started_at
+        now = self.clock()
+        self._charge_elapsed_time(now)
+        duration = now - self._started_at
         summary = TripSummary(duration_seconds=duration, amount=round(self._amount, 2))
         self.active = False
         return summary
@@ -64,12 +66,13 @@ class Taximeter:
         if not self.active:
             raise RuntimeError("No hay ninguna carrera activa")
 
-    def _charge_elapsed_time(self) -> None:
-        self._amount += self._elapsed_amount()
-        self._last_tick = self.clock()
+    def _charge_elapsed_time(self, now: float | None = None) -> None:
+        current_time = self.clock() if now is None else now
+        self._amount += self._elapsed_amount(current_time)
+        self._last_tick = current_time
 
-    def _elapsed_amount(self) -> float:
-        seconds = self.clock() - self._last_tick
+    def _elapsed_amount(self, now: float) -> float:
+        seconds = now - self._last_tick
         rate = (
             self.rates.moving_rate_per_second
             if self.status == TaxiStatus.MOVING
