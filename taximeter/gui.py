@@ -61,11 +61,17 @@ class TaximeterApp:
         password.pack(padx=40, fill="x")
 
         def login() -> None:
-            if self.auth.verify(password.get()):
+            try:
+                authenticated = self.auth.verify(password.get())
+            except Exception:
+                logger.exception("gui_authentication_error")
+                messagebox.showerror("Error", "No se pudo verificar la contraseña")
+                return
+            if authenticated:
                 logger.info("gui_login_success")
                 self._show_meter()
             else:
-                logger.warning("gui_login_failed")
+                logger.error("gui_login_failed")
                 messagebox.showerror("Error", "Contraseña incorrecta")
 
         tk.Button(self.root, text="Entrar", command=login, font=("Arial", 20)).pack(pady=28)
@@ -114,6 +120,7 @@ class TaximeterApp:
             self.taximeter.start_trip()
             logger.info("gui_trip_started")
         except RuntimeError as error:
+            logger.exception("gui_operation_error")
             messagebox.showinfo("Taximetro", str(error))
 
     def _set_status(self, status: TaxiStatus) -> None:
@@ -121,21 +128,33 @@ class TaximeterApp:
             self.taximeter.set_status(status)
             logger.info("gui_status_changed %s", status.value)
         except RuntimeError as error:
+            logger.exception("gui_operation_error")
             messagebox.showinfo("Taximetro", str(error))
 
     def _finish(self) -> None:
         try:
             summary = self.taximeter.finish_trip()
         except RuntimeError as error:
+            logger.exception("gui_operation_error")
             messagebox.showinfo("Taximetro", str(error))
             return
 
-        self.history.add(summary)
+        try:
+            self.history.add(summary)
+        except Exception:
+            logger.exception("gui_history_write_error")
+            messagebox.showerror("Error", "No se pudo guardar la carrera")
+            return
         logger.info("gui_trip_finished amount=%.2f", summary.amount)
         messagebox.showinfo("Total", f"Total a cobrar: {summary.amount:.2f} EUR")
 
     def _show_history(self) -> None:
-        entries = self.history.all()
+        try:
+            entries = self.history.all()
+        except Exception:
+            logger.exception("gui_history_read_error")
+            messagebox.showerror("Error", "No se pudo consultar el historial")
+            return
         if not entries:
             messagebox.showinfo("Historial", "Todavia no hay carreras guardadas.")
             return
