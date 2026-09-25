@@ -47,6 +47,10 @@ Comandos disponibles:
 python3 main.py --gui
 ```
 
+La primera ejecucion solicita crear y confirmar una contraseña; en las siguientes, la GUI requiere autenticarse antes de mostrar el taximetro.
+
+La pantalla ofrece los botones `Iniciar`, `Parado`, `Marcha`, `Finalizar` e `Historial` con tipografia 18 y altura de tres filas. Muestra estado, tiempo e importe, y se actualiza automaticamente cada 500 ms.
+
 ## Cambiar tarifas
 
 Las tarifas se cargan al iniciar el programa, tanto en la CLI como en la interfaz grafica. Los cambios se aplican en la siguiente ejecucion; no se recargan durante una carrera.
@@ -84,8 +88,10 @@ python3 -m unittest
 │   ├── logging_config.py
 │   └── taximeter.py
 └── tests/
+    ├── test_auth.py
     ├── test_cli.py
     ├── test_config.py
+    ├── test_gui.py
     ├── test_history.py
     ├── test_history_interfaces.py
     ├── test_logging.py
