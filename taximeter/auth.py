@@ -10,6 +10,7 @@ from pathlib import Path
 
 
 CREDENTIALS_PATH = Path("data/credentials.json")
+MIN_PASSWORD_LENGTH = 4
 PBKDF2_ITERATIONS = 600_000
 
 
@@ -21,8 +22,10 @@ class PasswordAuth:
         return self.path.exists()
 
     def create_password(self, password: str) -> None:
-        if len(password) < 4:
-            raise ValueError("La contraseña debe tener al menos 4 caracteres")
+        if len(password) < MIN_PASSWORD_LENGTH:
+            raise ValueError(
+                f"La contraseña debe tener al menos {MIN_PASSWORD_LENGTH} caracteres"
+            )
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         salt = os.urandom(16)
@@ -57,7 +60,11 @@ def ensure_cli_password(auth: PasswordAuth) -> None:
         if password != repeated:
             print("Las contraseñas no coinciden.")
             continue
-        auth.create_password(password)
+        try:
+            auth.create_password(password)
+        except ValueError as error:
+            print(error)
+            continue
         print("Contraseña creada.")
         return
 

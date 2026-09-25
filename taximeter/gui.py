@@ -52,7 +52,13 @@ class TaximeterApp:
                 return
             self._show_meter()
 
-        tk.Button(self.root, text="Guardar", command=save, font=("Arial", 18)).pack(pady=24)
+        tk.Button(
+            self.root,
+            text="Guardar",
+            command=save,
+            font=("Arial", 18),
+            height=3,
+        ).pack(pady=24)
 
     def _show_login(self) -> None:
         self._clear()
@@ -74,7 +80,13 @@ class TaximeterApp:
                 logger.error("gui_login_failed")
                 messagebox.showerror("Error", "Contraseña incorrecta")
 
-        tk.Button(self.root, text="Entrar", command=login, font=("Arial", 20)).pack(pady=28)
+        tk.Button(
+            self.root,
+            text="Entrar",
+            command=login,
+            font=("Arial", 18),
+            height=3,
+        ).pack(pady=28)
 
     def _show_meter(self) -> None:
         self._clear()
@@ -144,7 +156,6 @@ class TaximeterApp:
         except Exception:
             logger.exception("gui_history_write_error")
             messagebox.showerror("Error", "No se pudo guardar la carrera")
-            return
         logger.info("gui_trip_finished amount=%.2f", summary.amount)
         messagebox.showinfo("Total", f"Total a cobrar: {summary.amount:.2f} EUR")
 
