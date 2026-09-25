@@ -1,10 +1,11 @@
 import io
+import logging
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import MagicMock, call, patch
 
 from taximeter import cli
-from taximeter.config import Rates
+from taximeter.config import Rates, RatesConfigurationError
 from taximeter.taximeter import TaxiStatus, TripSummary
 
 
@@ -103,6 +104,58 @@ class CliStatusChangeTest(unittest.TestCase):
         self.assertIn("Error: No hay ninguna carrera activa", output)
         log_exception.assert_called_once_with("operation_error")
         taximeter.set_status.assert_called_once_with(TaxiStatus.MOVING)
+
+
+class CliConfigurationTest(unittest.TestCase):
+    def test_loads_current_rates_for_each_execution(self) -> None:
+        configured_rates = (
+            Rates(stopped_rate_per_second=0.10, moving_rate_per_second=0.20),
+            Rates(stopped_rate_per_second=0.30, moving_rate_per_second=0.40),
+        )
+
+        for rates in configured_rates:
+            with self.subTest(rates=rates):
+                with (
+                    patch.object(cli, "PasswordAuth") as auth_class,
+                    patch.object(cli, "ensure_cli_password"),
+                    patch.object(cli, "_ask_password", return_value="password"),
+                    patch.object(cli, "load_rates", return_value=rates) as load_rates_mock,
+                    patch.object(cli, "Taximeter") as taximeter_class,
+                    patch.object(cli, "TripHistory"),
+                    patch("builtins.input", return_value="salir"),
+                    redirect_stdout(io.StringIO()),
+                ):
+                    auth_class.return_value.verify.return_value = True
+                    cli.run_cli()
+
+                load_rates_mock.assert_called_once_with()
+                taximeter_class.assert_called_once_with(rates)
+
+    def test_configuration_error_stops_startup_with_clear_message(self) -> None:
+        error = RatesConfigurationError("Falta la clave 'moving_rate_per_second'")
+        errors = io.StringIO()
+
+        with (
+            patch.object(cli, "load_rates", side_effect=error) as load_rates_mock,
+            patch.object(cli, "PasswordAuth") as auth_class,
+            patch.object(cli, "ensure_cli_password") as ensure_password,
+            patch.object(cli, "Taximeter") as taximeter_class,
+            patch("builtins.input") as input_mock,
+            redirect_stderr(errors),
+            self.assertLogs(cli.logger, level=logging.ERROR) as logs,
+        ):
+            with self.assertRaises(SystemExit) as exit_info:
+                cli.run_cli()
+
+        self.assertEqual(exit_info.exception.code, 1)
+        load_rates_mock.assert_called_once_with()
+        auth_class.assert_not_called()
+        ensure_password.assert_not_called()
+        taximeter_class.assert_not_called()
+        input_mock.assert_not_called()
+        self.assertIn("configuration_error", "\n".join(logs.output))
+        self.assertIn("Error de configuración", errors.getvalue())
+        self.assertIn(str(error), errors.getvalue())
 
 
 class CliFinishTripTest(unittest.TestCase):

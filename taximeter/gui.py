@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from taximeter.auth import PasswordAuth
-from taximeter.config import load_rates
+from taximeter.config import RatesConfigurationError, load_rates
 from taximeter.history import TripHistory
 from taximeter.taximeter import TaxiStatus, Taximeter
 
@@ -178,6 +178,12 @@ class TaximeterApp:
 
 def run_gui() -> None:
     root = tk.Tk()
-    TaximeterApp(root)
+    try:
+        TaximeterApp(root)
+    except RatesConfigurationError as error:
+        logger.exception("gui_configuration_error")
+        messagebox.showerror("Error de configuración", str(error))
+        root.destroy()
+        raise SystemExit(1) from error
     root.mainloop()
 

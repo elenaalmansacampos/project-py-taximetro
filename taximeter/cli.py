@@ -6,7 +6,7 @@ import sys
 import time
 
 from taximeter.auth import PasswordAuth, ensure_cli_password
-from taximeter.config import load_rates
+from taximeter.config import RatesConfigurationError, load_rates
 from taximeter.gui import run_gui
 from taximeter.history import TripHistory
 from taximeter.logging_config import configure_logging
@@ -36,6 +36,13 @@ def main() -> None:
 
 
 def run_cli() -> None:
+    try:
+        rates = load_rates()
+    except RatesConfigurationError as error:
+        logger.exception("configuration_error")
+        print(f"Error de configuración: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+
     auth = PasswordAuth()
     ensure_cli_password(auth)
     try:
@@ -48,7 +55,6 @@ def run_cli() -> None:
         print("Contraseña incorrecta.")
         sys.exit(1)
 
-    rates = load_rates()
     taximeter = Taximeter(rates)
     history = TripHistory()
 

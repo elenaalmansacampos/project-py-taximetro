@@ -49,6 +49,8 @@ python3 main.py --gui
 
 ## Cambiar tarifas
 
+Las tarifas se cargan al iniciar el programa, tanto en la CLI como en la interfaz grafica. Los cambios se aplican en la siguiente ejecucion; no se recargan durante una carrera.
+
 Edita `config/tarifas.json`:
 
 ```json
@@ -57,6 +59,8 @@ Edita `config/tarifas.json`:
   "moving_rate_per_second": 0.05
 }
 ```
+
+Si el fichero falta, tiene un JSON mal formado, le falta una clave o contiene una tarifa no numerica o negativa, el programa no inicia y muestra un error de configuracion identificable.
 
 ## Tests
 
@@ -79,7 +83,13 @@ python3 -m unittest
 │   ├── history.py
 │   ├── logging_config.py
 │   └── taximeter.py
-└── tests/test_taximeter.py
+└── tests/
+    ├── test_cli.py
+    ├── test_config.py
+    ├── test_history.py
+    ├── test_history_interfaces.py
+    ├── test_logging.py
+    └── test_taximeter.py
 ```
 
 ## Historias cubiertas

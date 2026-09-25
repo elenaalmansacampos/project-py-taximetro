@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from taximeter import cli, gui, logging_config
-from taximeter.config import Rates
+from taximeter.config import Rates, RatesConfigurationError
 
 
 class LoggingConfigurationTest(unittest.TestCase):
@@ -97,6 +97,25 @@ class GuiLoggingTest(unittest.TestCase):
         self.assertIn("gui_operation_error", log_output)
         self.assertIn("No se pudo iniciar", log_output)
         show_info.assert_called_once_with("Taximetro", "No se pudo iniciar")
+
+    def test_configuration_errors_are_shown_and_logged(self) -> None:
+        root = MagicMock()
+        error = RatesConfigurationError("No existe el fichero de tarifas")
+
+        with (
+            patch.object(gui.tk, "Tk", return_value=root),
+            patch.object(gui, "TaximeterApp", side_effect=error),
+            patch.object(gui.messagebox, "showerror") as show_error,
+            self.assertLogs(gui.logger, level=logging.ERROR) as logs,
+        ):
+            with self.assertRaises(SystemExit) as exit_info:
+                gui.run_gui()
+
+        self.assertEqual(exit_info.exception.code, 1)
+        self.assertIn("gui_configuration_error", "\n".join(logs.output))
+        show_error.assert_called_once_with("Error de configuración", str(error))
+        root.destroy.assert_called_once_with()
+        root.mainloop.assert_not_called()
 
 
 if __name__ == "__main__":
