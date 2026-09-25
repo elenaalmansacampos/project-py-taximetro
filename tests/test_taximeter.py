@@ -23,6 +23,28 @@ class TaximeterTest(unittest.TestCase):
             clock=self.clock,
         )
 
+    def test_starts_trip_in_stopped_state_with_zero_amount(self) -> None:
+        self.taximeter.start_trip()
+
+        self.assertTrue(self.taximeter.active)
+        self.assertEqual(self.taximeter.status, TaxiStatus.STOPPED)
+        self.assertEqual(self.taximeter.current_amount(), 0.0)
+
+    def test_cannot_start_a_second_trip(self) -> None:
+        self.taximeter.start_trip()
+
+        with self.assertRaisesRegex(RuntimeError, "Ya hay una carrera activa"):
+            self.taximeter.start_trip()
+
+    def test_can_start_a_new_trip_after_finishing(self) -> None:
+        self.taximeter.start_trip()
+        self.taximeter.finish_trip()
+        self.taximeter.start_trip()
+
+        self.assertTrue(self.taximeter.active)
+        self.assertEqual(self.taximeter.status, TaxiStatus.STOPPED)
+        self.assertEqual(self.taximeter.current_amount(), 0.0)
+
     def test_charges_stopped_time(self) -> None:
         self.taximeter.start_trip()
         self.clock.advance(10)
