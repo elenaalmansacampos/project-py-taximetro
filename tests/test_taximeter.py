@@ -45,6 +45,32 @@ class TaximeterTest(unittest.TestCase):
         self.assertEqual(self.taximeter.status, TaxiStatus.STOPPED)
         self.assertEqual(self.taximeter.current_amount(), 0.0)
 
+    def test_chains_multiple_trips_with_independent_summaries(self) -> None:
+        self.taximeter.start_trip()
+        self.clock.advance(10)
+        self.taximeter.set_status(TaxiStatus.MOVING)
+        self.clock.advance(20)
+        first_summary = self.taximeter.finish_trip()
+
+        self.clock.advance(10)
+        self.taximeter.start_trip()
+
+        self.assertTrue(self.taximeter.active)
+        self.assertEqual(self.taximeter.status, TaxiStatus.STOPPED)
+        self.assertEqual(self.taximeter.current_amount(), 0.0)
+        self.assertEqual(first_summary.duration_seconds, 30)
+        self.assertEqual(first_summary.amount, 1.20)
+
+        self.clock.advance(5)
+        self.taximeter.set_status(TaxiStatus.MOVING)
+        self.clock.advance(20)
+        second_summary = self.taximeter.finish_trip()
+
+        self.assertEqual(first_summary.duration_seconds, 30)
+        self.assertEqual(first_summary.amount, 1.20)
+        self.assertEqual(second_summary.duration_seconds, 25)
+        self.assertEqual(second_summary.amount, 1.10)
+
     def test_charges_stopped_time(self) -> None:
         self.taximeter.start_trip()
         self.clock.advance(10)

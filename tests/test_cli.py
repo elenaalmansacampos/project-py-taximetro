@@ -14,6 +14,8 @@ def _run_cli(
     status_error: Exception | None = None,
     finish_error: Exception | None = None,
     finish_summary: TripSummary | None = None,
+    finish_summaries: tuple[TripSummary, ...] | None = None,
+    history: MagicMock | None = None,
 ) -> tuple[MagicMock, str, MagicMock]:
     rates = Rates(stopped_rate_per_second=0.02, moving_rate_per_second=0.05)
     output = io.StringIO()
@@ -24,7 +26,7 @@ def _run_cli(
         patch.object(cli, "_ask_password", return_value="password"),
         patch.object(cli, "load_rates", return_value=rates),
         patch.object(cli, "Taximeter") as taximeter_class,
-        patch.object(cli, "TripHistory"),
+        patch.object(cli, "TripHistory") as history_class,
         patch.object(cli.logger, "exception") as log_exception,
         patch("builtins.input", side_effect=[*commands, "salir"]),
         redirect_stdout(output),
@@ -32,13 +34,17 @@ def _run_cli(
         auth_class.return_value.verify.return_value = True
         taximeter = taximeter_class.return_value
         taximeter.current_amount.return_value = 0.0
+        if history is not None:
+            history_class.return_value = history
         if start_error is not None:
             taximeter.start_trip.side_effect = start_error
         if status_error is not None:
             taximeter.set_status.side_effect = status_error
         if finish_error is not None:
             taximeter.finish_trip.side_effect = finish_error
-        if finish_summary is not None:
+        elif finish_summaries is not None:
+            taximeter.finish_trip.side_effect = finish_summaries
+        elif finish_summary is not None:
             taximeter.finish_trip.return_value = finish_summary
 
         cli.run_cli()
@@ -117,6 +123,35 @@ class CliFinishTripTest(unittest.TestCase):
 
         self.assertIn("Error: No hay ninguna carrera activa", output)
         log_exception.assert_called_once_with("operation_error")
+
+
+class CliMultipleTripsTest(unittest.TestCase):
+    def test_finishes_and_starts_multiple_trips_without_exiting(self) -> None:
+        first_summary = TripSummary(duration_seconds=30, amount=1.20)
+        second_summary = TripSummary(duration_seconds=25, amount=1.10)
+        history = MagicMock()
+
+        taximeter, output, _ = _run_cli(
+            ("inicio", "marcha", "fin", "i", "parado", "f"),
+            finish_summaries=(first_summary, second_summary),
+            history=history,
+        )
+
+        self.assertEqual(taximeter.start_trip.call_count, 2)
+        self.assertEqual(
+            taximeter.set_status.call_args_list,
+            [call(TaxiStatus.MOVING), call(TaxiStatus.STOPPED)],
+        )
+        self.assertEqual(taximeter.finish_trip.call_count, 2)
+        self.assertEqual(
+            history.add.call_args_list, [call(first_summary), call(second_summary)]
+        )
+        self.assertEqual(
+            output.count("Carrera iniciada. Estado inicial: parado."), 2
+        )
+        self.assertIn("Total a cobrar: 1.20 EUR", output)
+        self.assertIn("Total a cobrar: 1.10 EUR", output)
+        self.assertIn("Fin del turno.", output)
 
 
 if __name__ == "__main__":
