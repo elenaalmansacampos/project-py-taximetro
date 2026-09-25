@@ -68,6 +68,25 @@ class TaximeterTest(unittest.TestCase):
         self.assertEqual(summary.amount, 1.20)
         self.assertEqual(summary.duration_seconds, 30)
 
+    def test_charges_after_switching_back_to_stopped(self) -> None:
+        self.taximeter.start_trip()
+        self.clock.advance(10)
+        self.taximeter.set_status(TaxiStatus.MOVING)
+        self.clock.advance(20)
+        self.taximeter.set_status(TaxiStatus.STOPPED)
+        self.clock.advance(10)
+        summary = self.taximeter.finish_trip()
+
+        self.assertEqual(summary.amount, 1.40)
+        self.assertEqual(summary.duration_seconds, 40)
+
+    def test_cannot_change_status_without_active_trip(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "No hay ninguna carrera activa"):
+            self.taximeter.set_status(TaxiStatus.MOVING)
+
+        self.assertFalse(self.taximeter.active)
+        self.assertEqual(self.taximeter.status, TaxiStatus.STOPPED)
+
     def test_cannot_finish_without_active_trip(self) -> None:
         with self.assertRaises(RuntimeError):
             self.taximeter.finish_trip()
