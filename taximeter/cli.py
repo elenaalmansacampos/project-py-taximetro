@@ -24,18 +24,27 @@ def main() -> None:
     configure_logging()
     logger.info("application_started")
 
-    if args.gui:
-        run_gui()
-        return
+    try:
+        if args.gui:
+            run_gui()
+            return
 
-    run_cli()
+        run_cli()
+    except Exception:
+        logger.exception("application_error")
+        raise
 
 
 def run_cli() -> None:
     auth = PasswordAuth()
     ensure_cli_password(auth)
-    if not auth.verify(_ask_password()):
-        logger.warning("login_failed")
+    try:
+        authenticated = auth.verify(_ask_password())
+    except Exception:
+        logger.exception("authentication_error")
+        raise
+    if not authenticated:
+        logger.error("login_failed")
         print("Contraseña incorrecta.")
         sys.exit(1)
 
