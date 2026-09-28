@@ -15,7 +15,7 @@ Tarifas por defecto:
 - Logs tecnicos en `logs/taximetro.log`.
 - Tarifas configurables en `config/tarifas.json`.
 - Tests automatizados con `unittest`.
-- Acceso protegido con contraseña hasheada mediante PBKDF2.
+- Acceso protegido con contraseña: PBKDF2-HMAC-SHA256 con 600.000 iteraciones y salt aleatorio por credencial; nunca se guarda en claro.
 - Interfaz grafica Tkinter con botones grandes.
 
 ## Requisitos
@@ -29,7 +29,7 @@ Tarifas por defecto:
 python3 main.py
 ```
 
-En la primera ejecucion el programa pedira crear una contraseña.
+En la primera ejecucion el programa pide crear una contraseña y confirmarla, sin mostrar los caracteres (minimo 4 caracteres). En las siguientes pide la contraseña para entrar: si es incorrecta, la CLI termina con codigo de salida 1.
 
 Comandos disponibles:
 
@@ -72,13 +72,20 @@ Si el fichero falta, tiene un JSON mal formado, le falta una clave o contiene un
 python3 -m unittest
 ```
 
+Son 61 tests que cubren dominio, configuracion, autenticacion, historial, logging y las dos interfaces (CLI y GUI).
+
 ## Estructura
 
 ```text
 .
-├── config/tarifas.json
+├── config/tarifas.json        # tarifas configurables
+├── data/                      # generado en runtime (git ignored)
+│   ├── credentials.json       # salt + hash de la contraseña
+│   └── historial_carreras.csv
 ├── docs/github-project-tasks.md
+├── logs/taximetro.log         # generado en runtime (git ignored)
 ├── main.py
+├── scripts/sync_github_project_tasks.sh
 ├── taximeter/
 │   ├── auth.py
 │   ├── cli.py
