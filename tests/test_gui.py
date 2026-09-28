@@ -29,7 +29,7 @@ class GuiEntryPointTest(unittest.TestCase):
         with (
             patch.object(sys, "argv", ["main.py", "--gui"]),
             patch.object(cli, "configure_logging"),
-            patch.object(cli, "run_gui") as run_gui,
+            patch("taximeter.gui.run_gui") as run_gui,
             patch.object(cli, "run_cli") as run_cli,
         ):
             cli.main()
@@ -42,9 +42,9 @@ class GuiMeterLayoutTest(GuiTestCase):
     def test_meter_has_large_buttons_and_initial_values(self) -> None:
         app = self._app()
         with (
-            patch.object(gui.tk, "Label") as label_class,
-            patch.object(gui.tk, "Frame") as frame_class,
-            patch.object(gui.tk, "Button") as button_class,
+            patch.object(gui.ctk, "CTkLabel") as label_class,
+            patch.object(gui.ctk, "CTkFrame") as frame_class,
+            patch.object(gui.ctk, "CTkButton") as button_class,
         ):
             app._show_meter()
 
@@ -53,12 +53,12 @@ class GuiMeterLayoutTest(GuiTestCase):
         self.assertEqual(actual_buttons, expected_buttons)
         for button_call in button_class.call_args_list:
             self.assertEqual(button_call.kwargs["font"], ("Arial", 18))
-            self.assertEqual(button_call.kwargs["height"], 3)
+            self.assertEqual(button_call.kwargs["height"], 48)
             self.assertTrue(callable(button_call.kwargs["command"]))
 
         self.assertEqual(
             [label.kwargs["text"] for label in label_class.call_args_list],
-            ["Sin carrera activa", "0.00 EUR", "0 s"],
+            ["TaxiTech Taximetro", "0.00 EUR", "0 s", "Sin carrera activa"],
         )
         self.assertEqual(
             frame_class.return_value.columnconfigure.call_args_list,
@@ -78,9 +78,26 @@ class GuiMeterLayoutTest(GuiTestCase):
 
         app._refresh()
 
-        app.status_label.config.assert_called_once_with(text="Estado: en movimiento")
-        app.amount_label.config.assert_called_once_with(text="1.23 EUR")
-        app.time_label.config.assert_called_once_with(text="5 s")
+        app.status_label.configure.assert_called_once_with(
+            text="Estado: en movimiento", fg_color=gui.SUCCESS, text_color=gui.INK
+        )
+        app.amount_label.configure.assert_called_once_with(text="1.23 EUR")
+        app.time_label.configure.assert_called_once_with(text="5 s")
+        app.root.after.assert_called_once_with(500, app._refresh)
+
+    def test_refresh_shows_amber_pill_when_stopped(self) -> None:
+        app = self._app()
+        app.taximeter.active = True
+        app.taximeter.status = TaxiStatus.STOPPED
+        app.status_label = MagicMock()
+        app.amount_label = MagicMock()
+        app.time_label = MagicMock()
+
+        app._refresh()
+
+        app.status_label.configure.assert_called_once_with(
+            text="Estado: parado", fg_color=gui.WARNING, text_color=gui.INK
+        )
         app.root.after.assert_called_once_with(500, app._refresh)
 
     def test_refresh_shows_initial_values_without_active_trip(self) -> None:
@@ -91,9 +108,11 @@ class GuiMeterLayoutTest(GuiTestCase):
 
         app._refresh()
 
-        app.status_label.config.assert_called_once_with(text="Sin carrera activa")
-        app.amount_label.config.assert_called_once_with(text="0.00 EUR")
-        app.time_label.config.assert_called_once_with(text="0 s")
+        app.status_label.configure.assert_called_once_with(
+            text="Sin carrera activa", fg_color=gui.SURFACE, text_color=gui.MUTED
+        )
+        app.amount_label.configure.assert_called_once_with(text="0.00 EUR")
+        app.time_label.configure.assert_called_once_with(text="0 s")
         app.root.after.assert_called_once_with(500, app._refresh)
 
     def test_controls_delegate_to_central_taximeter(self) -> None:
@@ -148,9 +167,10 @@ class GuiAuthenticationTest(unittest.TestCase):
             patch.object(gui, "load_rates", return_value=Rates(0.02, 0.05)),
             patch.object(gui, "Taximeter"),
             patch.object(gui, "TripHistory"),
-            patch.object(gui.tk, "Label"),
-            patch.object(gui.tk, "Entry", side_effect=[password, repeated]) as entry_class,
-            patch.object(gui.tk, "Button") as button_class,
+            patch.object(gui.ctk, "CTkFrame"),
+            patch.object(gui.ctk, "CTkLabel"),
+            patch.object(gui.ctk, "CTkEntry", side_effect=[password, repeated]) as entry_class,
+            patch.object(gui.ctk, "CTkButton") as button_class,
             patch.object(gui.messagebox, "showerror") as show_error,
         ):
             gui.TaximeterApp(root)
@@ -166,7 +186,7 @@ class GuiAuthenticationTest(unittest.TestCase):
             "Error", "La contraseña debe tener al menos 4 caracteres"
         )
         self.assertEqual(button_class.call_args.kwargs["font"], ("Arial", 18))
-        self.assertEqual(button_class.call_args.kwargs["height"], 3)
+        self.assertEqual(button_class.call_args.kwargs["height"], 48)
         auth.verify.assert_not_called()
 
     def test_existing_credentials_allow_retry_after_wrong_password(self) -> None:
@@ -182,9 +202,10 @@ class GuiAuthenticationTest(unittest.TestCase):
             patch.object(gui, "load_rates", return_value=Rates(0.02, 0.05)),
             patch.object(gui, "Taximeter"),
             patch.object(gui, "TripHistory"),
-            patch.object(gui.tk, "Label"),
-            patch.object(gui.tk, "Entry", return_value=password) as entry_class,
-            patch.object(gui.tk, "Button") as button_class,
+            patch.object(gui.ctk, "CTkFrame"),
+            patch.object(gui.ctk, "CTkLabel"),
+            patch.object(gui.ctk, "CTkEntry", return_value=password) as entry_class,
+            patch.object(gui.ctk, "CTkButton") as button_class,
             patch.object(gui.TaximeterApp, "_show_meter") as show_meter,
             patch.object(gui.messagebox, "showerror") as show_error,
             patch.object(gui.logger, "error"),
@@ -197,7 +218,7 @@ class GuiAuthenticationTest(unittest.TestCase):
         show_error.assert_called_once_with("Error", "Contraseña incorrecta")
         self.assertEqual(entry_class.call_args.kwargs["show"], "*")
         self.assertEqual(button_class.call_args.kwargs["font"], ("Arial", 18))
-        self.assertEqual(button_class.call_args.kwargs["height"], 3)
+        self.assertEqual(button_class.call_args.kwargs["height"], 48)
         self.assertEqual(auth.verify.call_args_list, [call("incorrecta"), call("incorrecta")])
         show_meter.assert_called_once_with()
 

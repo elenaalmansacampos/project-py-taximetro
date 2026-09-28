@@ -7,7 +7,6 @@ import time
 
 from taximeter.auth import PasswordAuth, ensure_cli_password
 from taximeter.config import RatesConfigurationError, load_rates
-from taximeter.gui import run_gui
 from taximeter.history import TripHistory
 from taximeter.logging_config import configure_logging
 from taximeter.taximeter import TaxiStatus, Taximeter
@@ -26,6 +25,8 @@ def main() -> None:
 
     try:
         if args.gui:
+            from taximeter.gui import run_gui
+
             run_gui()
             return
 
