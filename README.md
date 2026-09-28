@@ -6,8 +6,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/dependencias-0%20externas-2ea44f?style=flat-square" alt="Sin dependencias externas">
-  <img src="https://img.shields.io/badge/tests-61%20OK-4C1?style=flat-square" alt="61 tests OK">
+  <img src="https://img.shields.io/badge/gui-customtkinter-1F6FEB?style=flat-square" alt="GUI con customtkinter">
+  <img src="https://img.shields.io/badge/tests-62%20OK-4C1?style=flat-square" alt="62 tests OK">
   <img src="https://img.shields.io/badge/historias-9%2F9-6f42c1?style=flat-square" alt="9 de 9 historias">
   <img src="https://img.shields.io/badge/fase-3%20Arquitectura%20y%20UX-orange?style=flat-square" alt="Fase 3">
 </p>
@@ -28,11 +28,11 @@
 - 🖥️ **CLI interactiva** — iniciar, cambiar estado, finalizar y encadenar carreras.
 - 📊 **Cálculo continuo** por tramos según el estado del taxi.
 - 🔐 **Acceso protegido con contraseña** — PBKDF2-HMAC-SHA256 con 600.000 iteraciones y salt aleatorio por credencial; nunca se guarda en claro.
-- 🖼️ **Interfaz gráfica Tkinter** con botones grandes y actualización automática cada 500 ms.
+- 🖼️ **Interfaz gráfica moderna** (customtkinter) con tema oscuro elegante, botones grandes de colores y píldora de estado que cambia según la carrera.
 - 📁 **Histórico persistente** en `data/historial_carreras.csv`.
 - ⚙️ **Tarifas configurables** en `config/tarifas.json`.
 - 📝 **Logs técnicos** en `logs/taximetro.log`.
-- ✅ **61 tests automatizados** con `unittest`.
+- ✅ **62 tests automatizados** con `unittest`.
 
 ---
 
@@ -50,12 +50,13 @@ python3 main.py
 ### GUI
 
 ```bash
+pip install -r requirements.txt   # primera vez
 python3 main.py --gui
 ```
 
-La primera ejecución solicita crear y confirmar una contraseña; en las siguientes, la GUI requiere autenticarse antes de mostrar el taxímetro. Si la contraseña es incorrecta muestra un error y permite reintentar.
+La primera ejecución solicita crear y confirmar una contraseña; en las siguientes, la GUI requiere autenticarse antes de mostrar el taxímetro. Si la contraseña es incorrecta muestra un error y permite reintentar (se puede confirmar con la tecla <kbd>Enter</kbd>).
 
-La pantalla ofrece los botones `Iniciar`, `Parado`, `Marcha`, `Finalizar` e `Historial` (tipografía 18, altura de tres filas). Muestra estado, tiempo e importe, y se actualiza cada 500 ms.
+Interfaz con **tema oscuro elegante**: tarjetas redondeadas, importe grande de lectura inmediata y una **píldora de estado** que cambia de gris (sin carrera) a ámbar (parado) y verde (en movimiento). Los botones `Iniciar` (verde), `Parado` (ámbar), `Marcha` (cian), `Finalizar` (rojo) e `Historial` (gris) se actualizan cada 500 ms.
 
 ---
 
@@ -94,7 +95,7 @@ Si el fichero falta, tiene un JSON mal formado, le falta una clave o contiene un
 python3 -m unittest
 ```
 
-> **61 tests OK** — cubren dominio, configuración, autenticación, histórico, logging y las dos interfaces (CLI y GUI).
+> **62 tests OK** — cubren dominio, configuración, autenticación, histórico, logging y las dos interfaces (CLI y GUI).
 
 ---
 
@@ -148,12 +149,13 @@ flowchart TD
 ├── docs/github-project-tasks.md
 ├── logs/taximetro.log         # generado en runtime (git ignored)
 ├── main.py
+├── requirements.txt           # customtkinter
 ├── scripts/sync_github_project_tasks.sh
 ├── taximeter/
 │   ├── auth.py                # autenticación PBKDF2
 │   ├── cli.py                 # interfaz de línea de comandos
 │   ├── config.py              # carga y validación de tarifas
-│   ├── gui.py                 # interfaz gráfica Tkinter
+│   ├── gui.py                 # interfaz gráfica (customtkinter, tema oscuro)
 │   ├── history.py             # histórico CSV
 │   ├── logging_config.py      # configuración de logs
 │   └── taximeter.py           # núcleo de cálculo (dominio puro)
@@ -188,5 +190,5 @@ flowchart TD
 
 ## 🔮 Requisitos y evolución
 
-- **Requisitos:** Python 3.10 o superior · **0 librerías externas**.
+- **Requisitos:** Python 3.10 o superior y `pip install -r requirements.txt` (solo [customtkinter](https://pypi.org/project/customtkinter/) para la GUI; la CLI funciona sin instalar nada).
 - La **fase 4** queda documentada como evolución futura porque requiere API, base de datos y despliegue.
