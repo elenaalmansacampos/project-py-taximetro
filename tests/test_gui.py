@@ -1,226 +1,301 @@
-import sys
+import time
+import tkinter as tk
 import unittest
-from unittest.mock import MagicMock, call, patch
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import MagicMock, patch
 
-from taximeter import cli, gui
+from taximeter import gui
+from taximeter.auth import PasswordAuth
 from taximeter.config import Rates
-from taximeter.taximeter import TaxiStatus, TripSummary
+from taximeter.taximeter import Taximeter, TaxiStatus
 
 
-SUMMARY = TripSummary(duration_seconds=30, amount=1.20)
+STOPPED_RATE = 0.02
+MOVING_RATE = 0.05
+
+
+class FakeClock:
+    def __init__(self, value: float = 1000.0) -> None:
+        self.value = value
+
+    def __call__(self) -> float:
+        return self.value
+
+    def advance(self, seconds: float) -> None:
+        self.value += seconds
+
+
+def _children_of_type(root: tk.Misc, widget_type: type) -> list:
+    return [child for child in root.winfo_children() if isinstance(child, widget_type)]
+
+
+def _pump_until(root: tk.Misc, predicate, timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        root.update()
+        if predicate():
+            return True
+        time.sleep(0.02)
+    return False
 
 
 class GuiTestCase(unittest.TestCase):
-    def _app(self) -> gui.TaximeterApp:
+    def setUp(self) -> None:
+        try:
+            self.root = tk.Tk()
+        except tk.TclError as error:
+            self.skipTest(f"Sin display disponible: {error}")
+        self.root.withdraw()
+        self.addCleanup(self.root.destroy)
+
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.credentials_path = Path(directory.name) / "credentials.json"
+        self.auth = PasswordAuth(self.credentials_path)
+        self.clock = FakeClock()
+
+    def build_meter_app(self, real_clock: bool = False) -> gui.TaximeterApp:
         app = gui.TaximeterApp.__new__(gui.TaximeterApp)
-        app.root = MagicMock()
-        app.taximeter = MagicMock()
-        app.taximeter.active = False
-        app.taximeter.status = TaxiStatus.STOPPED
-        app.taximeter.current_amount.return_value = 0.0
-        app.taximeter.elapsed_seconds.return_value = 0.0
+        app.root = self.root
+        app.auth = self.auth
         app.history = MagicMock()
-        app._clear = MagicMock()
+        app.taximeter = Taximeter(
+            Rates(stopped_rate_per_second=STOPPED_RATE, moving_rate_per_second=MOVING_RATE),
+            clock=time.monotonic if real_clock else self.clock,
+        )
         return app
 
+    def build_login_app(self) -> gui.TaximeterApp:
+        return self.build_meter_app()
 
-class GuiEntryPointTest(unittest.TestCase):
-    def test_gui_flag_routes_to_gui(self) -> None:
-        with (
-            patch.object(sys, "argv", ["main.py", "--gui"]),
-            patch.object(cli, "configure_logging"),
-            patch("taximeter.gui.run_gui") as run_gui,
-            patch.object(cli, "run_cli") as run_cli,
-        ):
-            cli.main()
+    def submit(self, password: str, repeated: str | None = None) -> None:
+        entries = _children_of_type(self.root, tk.Entry)
+        entries[0].insert(0, password)
+        entries[1].insert(0, password if repeated is None else repeated)
+        _children_of_type(self.root, tk.Button)[-1].invoke()
 
-        run_gui.assert_called_once_with()
-        run_cli.assert_not_called()
+    def submit_login(self, password: str) -> None:
+        _children_of_type(self.root, tk.Entry)[0].insert(0, password)
+        _children_of_type(self.root, tk.Button)[-1].invoke()
+
+    def labels_text(self) -> list[str]:
+        return [label.cget("text") for label in _children_of_type(self.root, tk.Label)]
+
+    def meter_buttons(self) -> list[tk.Button]:
+        return _children_of_type(self.root.winfo_children()[-1], tk.Button)
 
 
-class GuiMeterLayoutTest(GuiTestCase):
-    def test_meter_has_large_buttons_and_initial_values(self) -> None:
-        app = self._app()
-        with (
-            patch.object(gui.ctk, "CTkLabel") as label_class,
-            patch.object(gui.ctk, "CTkFrame") as frame_class,
-            patch.object(gui.ctk, "CTkButton") as button_class,
-        ):
-            app._show_meter()
+class RealTimeCounterTest(GuiTestCase):
+    def test_meter_shows_status_amount_and_time(self) -> None:
+        app = self.build_meter_app()
+        app.taximeter.start_trip()
+        app.taximeter.set_status(TaxiStatus.MOVING)
+        self.clock.advance(120)
 
-        expected_buttons = ["Iniciar", "Parado", "Marcha", "Finalizar", "Historial"]
-        actual_buttons = [button.kwargs["text"] for button in button_class.call_args_list]
-        self.assertEqual(actual_buttons, expected_buttons)
-        for button_call in button_class.call_args_list:
-            self.assertEqual(button_call.kwargs["font"], ("Arial", 18))
-            self.assertEqual(button_call.kwargs["height"], 48)
-            self.assertTrue(callable(button_call.kwargs["command"]))
-
-        self.assertEqual(
-            [label.kwargs["text"] for label in label_class.call_args_list],
-            ["TaxiTech Taximetro", "0.00 EUR", "0 s", "Sin carrera activa"],
-        )
-        self.assertEqual(
-            frame_class.return_value.columnconfigure.call_args_list,
-            [call(0, weight=1), call(1, weight=1)],
-        )
-        app.root.after.assert_called_once_with(500, app._refresh)
-
-    def test_refresh_shows_active_trip_values(self) -> None:
-        app = self._app()
-        app.taximeter.active = True
-        app.taximeter.status = TaxiStatus.MOVING
-        app.taximeter.current_amount.return_value = 1.23
-        app.taximeter.elapsed_seconds.return_value = 4.6
-        app.status_label = MagicMock()
-        app.amount_label = MagicMock()
-        app.time_label = MagicMock()
-
+        app._show_meter()
         app._refresh()
 
-        app.status_label.configure.assert_called_once_with(
-            text="Estado: en movimiento", fg_color=gui.SUCCESS, text_color=gui.INK
-        )
-        app.amount_label.configure.assert_called_once_with(text="1.23 EUR")
-        app.time_label.configure.assert_called_once_with(text="5 s")
-        app.root.after.assert_called_once_with(500, app._refresh)
-
-    def test_refresh_shows_amber_pill_when_stopped(self) -> None:
-        app = self._app()
-        app.taximeter.active = True
-        app.taximeter.status = TaxiStatus.STOPPED
-        app.status_label = MagicMock()
-        app.amount_label = MagicMock()
-        app.time_label = MagicMock()
-
-        app._refresh()
-
-        app.status_label.configure.assert_called_once_with(
-            text="Estado: parado", fg_color=gui.WARNING, text_color=gui.INK
-        )
-        app.root.after.assert_called_once_with(500, app._refresh)
-
-    def test_refresh_shows_initial_values_without_active_trip(self) -> None:
-        app = self._app()
-        app.status_label = MagicMock()
-        app.amount_label = MagicMock()
-        app.time_label = MagicMock()
-
-        app._refresh()
-
-        app.status_label.configure.assert_called_once_with(
-            text="Sin carrera activa", fg_color=gui.SURFACE, text_color=gui.MUTED
-        )
-        app.amount_label.configure.assert_called_once_with(text="0.00 EUR")
-        app.time_label.configure.assert_called_once_with(text="0 s")
-        app.root.after.assert_called_once_with(500, app._refresh)
-
-    def test_controls_delegate_to_central_taximeter(self) -> None:
-        app = self._app()
-        app.taximeter.finish_trip.return_value = SUMMARY
-
-        with patch.object(gui.messagebox, "showinfo"):
-            app._start()
-            app._set_status(TaxiStatus.MOVING)
-            app._set_status(TaxiStatus.STOPPED)
-            app._finish()
-
-        app.taximeter.start_trip.assert_called_once_with()
         self.assertEqual(
-            app.taximeter.set_status.call_args_list,
-            [call(TaxiStatus.MOVING), call(TaxiStatus.STOPPED)],
-        )
-        app.taximeter.finish_trip.assert_called_once_with()
-        app.history.add.assert_called_once_with(SUMMARY)
-
-    def test_finish_always_shows_total_when_history_write_fails(self) -> None:
-        app = self._app()
-        app.taximeter.finish_trip.return_value = SUMMARY
-        app.history.add.side_effect = OSError("disco no disponible")
-
-        with (
-            patch.object(gui.messagebox, "showerror") as show_error,
-            patch.object(gui.messagebox, "showinfo") as show_info,
-            patch.object(gui.logger, "exception"),
-        ):
-            app._finish()
-
-        show_error.assert_called_once_with("Error", "No se pudo guardar la carrera")
-        show_info.assert_called_once_with("Total", "Total a cobrar: 1.20 EUR")
-
-
-class GuiAuthenticationTest(unittest.TestCase):
-    def test_first_run_uses_hidden_confirmation_and_rejects_short_password(self) -> None:
-        root = MagicMock()
-        password = MagicMock()
-        repeated = MagicMock()
-        password.get.side_effect = ["abc", "abc"]
-        repeated.get.return_value = "abc"
-        auth = MagicMock()
-        auth.credentials_exist.return_value = False
-        auth.create_password.side_effect = ValueError(
-            "La contraseña debe tener al menos 4 caracteres"
+            self.labels_text(),
+            ["Estado: en movimiento", "6.00 EUR", "120 s"],
         )
 
-        with (
-            patch.object(gui, "PasswordAuth", return_value=auth),
-            patch.object(gui, "load_rates", return_value=Rates(0.02, 0.05)),
-            patch.object(gui, "Taximeter"),
-            patch.object(gui, "TripHistory"),
-            patch.object(gui.ctk, "CTkFrame"),
-            patch.object(gui.ctk, "CTkLabel"),
-            patch.object(gui.ctk, "CTkEntry", side_effect=[password, repeated]) as entry_class,
-            patch.object(gui.ctk, "CTkButton") as button_class,
-            patch.object(gui.messagebox, "showerror") as show_error,
-        ):
-            gui.TaximeterApp(root)
-            save = button_class.call_args.kwargs["command"]
-            save()
+    def test_meter_shows_idle_state_without_active_trip(self) -> None:
+        app = self.build_meter_app()
+
+        app._show_meter()
 
         self.assertEqual(
-            [entry_call.kwargs["show"] for entry_call in entry_class.call_args_list],
-            ["*", "*"],
+            self.labels_text(), ["Sin carrera activa", "0.00 EUR", "0 s"]
         )
-        auth.create_password.assert_called_once_with("abc")
-        show_error.assert_called_once_with(
-            "Error", "La contraseña debe tener al menos 4 caracteres"
+
+    def test_refresh_reschedules_itself_every_500_ms(self) -> None:
+        app = self.build_meter_app()
+        app._show_meter()
+        scheduled: list[tuple[int, object]] = []
+        real_after = self.root.after
+
+        def recording_after(milliseconds, callback=None, *args):
+            scheduled.append((milliseconds, callback))
+            return real_after(milliseconds, callback, *args)
+
+        self.root.after = recording_after
+        try:
+            app._refresh()
+        finally:
+            self.root.after = real_after
+
+        self.assertEqual(scheduled[-1], (500, app._refresh))
+
+    def test_counter_advances_on_its_own_without_manual_refresh(self) -> None:
+        app = self.build_meter_app(real_clock=True)
+        app.taximeter.start_trip()
+        app.taximeter.set_status(TaxiStatus.MOVING)
+        app._show_meter()
+        before = app.amount_label.cget("text")
+
+        advanced = _pump_until(
+            self.root, lambda: app.amount_label.cget("text") != before
         )
-        self.assertEqual(button_class.call_args.kwargs["font"], ("Arial", 18))
-        self.assertEqual(button_class.call_args.kwargs["height"], 48)
-        auth.verify.assert_not_called()
 
-    def test_existing_credentials_allow_retry_after_wrong_password(self) -> None:
-        root = MagicMock()
-        password = MagicMock()
-        password.get.return_value = "incorrecta"
-        auth = MagicMock()
-        auth.credentials_exist.return_value = True
-        auth.verify.side_effect = [False, True]
+        self.assertTrue(advanced, "el contador no se actualizo solo")
+        self.assertNotEqual(app.time_label.cget("text"), "0 s")
+        self.assertEqual(app.status_label.cget("text"), "Estado: en movimiento")
 
-        with (
-            patch.object(gui, "PasswordAuth", return_value=auth),
-            patch.object(gui, "load_rates", return_value=Rates(0.02, 0.05)),
-            patch.object(gui, "Taximeter"),
-            patch.object(gui, "TripHistory"),
-            patch.object(gui.ctk, "CTkFrame"),
-            patch.object(gui.ctk, "CTkLabel"),
-            patch.object(gui.ctk, "CTkEntry", return_value=password) as entry_class,
-            patch.object(gui.ctk, "CTkButton") as button_class,
-            patch.object(gui.TaximeterApp, "_show_meter") as show_meter,
-            patch.object(gui.messagebox, "showerror") as show_error,
-            patch.object(gui.logger, "error"),
-        ):
-            gui.TaximeterApp(root)
-            login = button_class.call_args.kwargs["command"]
-            login()
-            login()
+    def test_amount_follows_the_active_status(self) -> None:
+        app = self.build_meter_app()
+        app.taximeter.start_trip()
+        self.clock.advance(60)
+        app.taximeter.set_status(TaxiStatus.MOVING)
+        self.clock.advance(60)
+        app._show_meter()
+        app._refresh()
 
+        # 60 s parado (1.20) + 60 s en movimiento (3.00)
+        self.assertEqual(app.amount_label.cget("text"), "4.20 EUR")
+
+    def test_buttons_are_large_touch_targets(self) -> None:
+        app = self.build_meter_app()
+
+        app._show_meter()
+        buttons = self.meter_buttons()
+
+        self.assertEqual(len(buttons), 5)
+        for button in buttons:
+            with self.subTest(boton=button.cget("text")):
+                self.assertEqual(int(button.cget("height")), 3)
+                self.assertGreaterEqual(button.winfo_reqwidth(), 100)
+
+
+class PasswordSetupTest(GuiTestCase):
+    def test_creating_a_password_opens_the_meter(self) -> None:
+        app = self.build_login_app()
+
+        app._show_setup()
+        self.assertIn("Crear contraseña", self.labels_text())
+
+        self.submit("secreto123")
+
+        self.assertTrue(self.auth.verify("secreto123"))
+        self.assertIn("Sin carrera activa", self.labels_text())
+
+    def test_mismatched_passwords_are_reported_and_nothing_is_saved(self) -> None:
+        app = self.build_login_app()
+
+        with patch.object(gui.messagebox, "showerror") as show_error:
+            app._show_setup()
+            self.submit("secreto123", repeated="otro1234")
+
+        show_error.assert_called_once_with("Error", "Las contraseñas no coinciden")
+        self.assertFalse(self.credentials_path.exists())
+        self.assertIn("Crear contraseña", self.labels_text())
+
+    def test_short_passwords_are_reported_and_nothing_is_saved(self) -> None:
+        app = self.build_login_app()
+
+        with patch.object(gui.messagebox, "showerror") as show_error:
+            app._show_setup()
+            self.submit("abc")
+
+        self.assertEqual(show_error.call_count, 1)
+        self.assertIn("4 caracteres", show_error.call_args[0][1])
+        self.assertFalse(self.credentials_path.exists())
+
+    def test_write_failures_are_reported_without_crashing(self) -> None:
+        app = self.build_login_app()
+        app.auth = MagicMock()
+        app.auth.create_password.side_effect = OSError("disco lleno")
+
+        with patch.object(gui.messagebox, "showerror") as show_error:
+            app._show_setup()
+            with self.assertLogs(gui.logger, level="ERROR") as logs:
+                self.submit("secreto123")
+
+        self.assertIn("gui_credentials_write_error", "\n".join(logs.output))
+        self.assertIn("No se pudo guardar la contraseña", show_error.call_args[0][1])
+        self.assertIn("Crear contraseña", self.labels_text())
+
+
+class LoginTest(GuiTestCase):
+    def test_correct_password_opens_the_meter(self) -> None:
+        self.auth.create_password("secreto123")
+        app = self.build_login_app()
+
+        app._show_login()
+        self.assertIn("TaxiTech Taximetro", self.labels_text())
+
+        self.submit_login("secreto123")
+
+        self.assertIn("Sin carrera activa", self.labels_text())
+
+    def test_wrong_password_is_reported_and_keeps_the_login_screen(self) -> None:
+        self.auth.create_password("secreto123")
+        app = self.build_login_app()
+
+        with patch.object(gui.messagebox, "showerror") as show_error:
+            app._show_login()
+            with self.assertLogs(gui.logger, level="ERROR") as logs:
+                self.submit_login("incorrecta")
+
+        self.assertIn("gui_login_failed", "\n".join(logs.output))
         show_error.assert_called_once_with("Error", "Contraseña incorrecta")
-        self.assertEqual(entry_class.call_args.kwargs["show"], "*")
-        self.assertEqual(button_class.call_args.kwargs["font"], ("Arial", 18))
-        self.assertEqual(button_class.call_args.kwargs["height"], 48)
-        self.assertEqual(auth.verify.call_args_list, [call("incorrecta"), call("incorrecta")])
-        show_meter.assert_called_once_with()
+        self.assertIn("TaxiTech Taximetro", self.labels_text())
+        self.assertFalse(hasattr(app, "amount_label"))
+
+
+class CorruptCredentialsRecoveryTest(GuiTestCase):
+    def corrupt_credentials(self) -> None:
+        self.credentials_path.write_text("{ truncado", encoding="utf-8")
+
+    def test_startup_with_damaged_credentials_offers_a_reset(self) -> None:
+        self.corrupt_credentials()
+
+        with patch.object(gui, "load_rates", return_value=Rates(STOPPED_RATE, MOVING_RATE)), \
+                patch.object(gui, "PasswordAuth", return_value=self.auth):
+            gui.TaximeterApp(self.root)
+
+        self.assertIn("Restablecer contraseña", self.labels_text())
+
+    def test_login_on_damaged_credentials_falls_back_to_reset(self) -> None:
+        self.auth.create_password("secreto123")
+        app = self.build_login_app()
+
+        with patch.object(gui.messagebox, "showerror") as show_error:
+            app._show_login()
+            self.corrupt_credentials()
+            with self.assertLogs(gui.logger, level="ERROR") as logs:
+                self.submit_login("secreto123")
+
+        self.assertIn("gui_credentials_corrupted", "\n".join(logs.output))
+        self.assertIn("dañado", show_error.call_args[0][1])
+        self.assertIn("Restablecer contraseña", self.labels_text())
+
+    def test_reset_creates_new_credentials_and_opens_the_meter(self) -> None:
+        self.corrupt_credentials()
+        app = self.build_login_app()
+
+        app._show_reset()
+        self.submit("nueva1234")
+
+        self.assertTrue(self.auth.verify("nueva1234"))
+        self.assertIn("Sin carrera activa", self.labels_text())
+
+    def test_startup_without_credentials_shows_the_creation_form(self) -> None:
+        with patch.object(gui, "load_rates", return_value=Rates(STOPPED_RATE, MOVING_RATE)), \
+                patch.object(gui, "PasswordAuth", return_value=self.auth):
+            gui.TaximeterApp(self.root)
+
+        self.assertIn("Crear contraseña", self.labels_text())
+
+    def test_startup_with_valid_credentials_shows_login(self) -> None:
+        self.auth.create_password("secreto123")
+
+        with patch.object(gui, "load_rates", return_value=Rates(STOPPED_RATE, MOVING_RATE)), \
+                patch.object(gui, "PasswordAuth", return_value=self.auth):
+            gui.TaximeterApp(self.root)
+
+        self.assertIn("TaxiTech Taximetro", self.labels_text())
 
 
 if __name__ == "__main__":

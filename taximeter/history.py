@@ -4,11 +4,13 @@ import csv
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Protocol, runtime_checkable
 
 from taximeter.taximeter import TripSummary
 
 
-HISTORY_PATH = Path("data/historial_carreras.csv")
+CSV_HISTORY_PATH = Path("data/historial_carreras.csv")
+HISTORY_PATH = CSV_HISTORY_PATH
 
 
 @dataclass(frozen=True)
@@ -18,7 +20,16 @@ class HistoryEntry:
     amount: float
 
 
-class TripHistory:
+@runtime_checkable
+class HistoryRepository(Protocol):
+    """Contrato minimo que la CLI y la GUI necesitan para leer y guardar carreras."""
+
+    def add(self, summary: TripSummary) -> None: ...
+
+    def all(self) -> list[HistoryEntry]: ...
+
+
+class CsvTripHistory:
     def __init__(self, path: Path = HISTORY_PATH) -> None:
         self.path = path
 
@@ -52,4 +63,7 @@ class TripHistory:
                 )
                 for row in reader
             ]
+
+
+TripHistory = CsvTripHistory
 

@@ -5,10 +5,24 @@ import logging
 import sys
 import time
 
+from taximeter.api import (
+    DEFAULT_API_HOST,
+    DEFAULT_API_PORT,
+    PANEL_PATH,
+    TRIPS_PATH,
+    create_server,
+)
 from taximeter.auth import PasswordAuth, ensure_cli_password
 from taximeter.config import RatesConfigurationError, load_rates
-from taximeter.history import TripHistory
+from taximeter.database import TripHistory
+from taximeter.gui import run_gui
+from taximeter.history import HistoryRepository
 from taximeter.logging_config import configure_logging
+from taximeter.migration import (
+    MigrationError,
+    format_migration_report,
+    migrate_csv_to_database,
+)
 from taximeter.taximeter import TaxiStatus, Taximeter
 
 
@@ -17,13 +31,49 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Taximetro digital TaxiTech Solutions")
-    parser.add_argument("--gui", action="store_true", help="abre la interfaz grafica")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--gui", action="store_true", help="abre la interfaz grafica")
+    modes.add_argument(
+        "--migrate-history",
+        action="store_true",
+        help="migra el historial CSV a SQLite",
+    )
+    modes.add_argument(
+        "--api",
+        action="store_true",
+        help="inicia la API REST de consulta del historial",
+    )
+    parser.add_argument(
+        "--api-host",
+        default=None,
+        help=f"direccion de escucha de la API (por defecto {DEFAULT_API_HOST})",
+    )
+    parser.add_argument(
+        "--api-port",
+        type=int,
+        default=None,
+        help=f"puerto de escucha de la API (por defecto {DEFAULT_API_PORT})",
+    )
     args = parser.parse_args()
+
+    if (args.api_host is not None or args.api_port is not None) and not args.api:
+        parser.error("--api-host y --api-port solo son validos junto a --api")
 
     configure_logging()
     logger.info("application_started")
 
     try:
+        if args.migrate_history:
+            run_history_migration()
+            return
+
+        if args.api:
+            run_api(
+                host=args.api_host or DEFAULT_API_HOST,
+                port=args.api_port or DEFAULT_API_PORT,
+            )
+            return
+
         if args.gui:
             from taximeter.gui import run_gui
 
@@ -34,6 +84,46 @@ def main() -> None:
     except Exception:
         logger.exception("application_error")
         raise
+
+
+def run_history_migration() -> None:
+    try:
+        report = migrate_csv_to_database()
+    except MigrationError as error:
+        logger.exception("history_migration_error")
+        print(f"Error de migracion: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+
+    output = format_migration_report(report)
+    print(output)
+    logger.info(
+        "history_migration_finished imported=%s duplicates=%s rejected=%s",
+        report.imported,
+        report.duplicates,
+        report.rejected_count,
+    )
+    if not report.ok:
+        raise SystemExit(1)
+
+
+def run_api(host: str = DEFAULT_API_HOST, port: int = DEFAULT_API_PORT) -> None:
+    history = TripHistory()
+    server = create_server(history, host, port)
+    logger.info(
+        "api_started host=%s port=%s",
+        server.server_address[0],
+        server.server_address[1],
+    )
+    print(f"Panel web del historial: {server.base_url}{PANEL_PATH}")
+    print(f"API REST del historial: {server.base_url}{TRIPS_PATH}")
+    print("El servicio es de solo lectura. Pulsa Ctrl+C para detenerlo.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nAPI detenida.")
+        logger.info("api_stopped")
+    finally:
+        server.server_close()
 
 
 def run_cli() -> None:
@@ -123,7 +213,7 @@ Comandos:
     )
 
 
-def print_history(history: TripHistory) -> None:
+def print_history(history: HistoryRepository) -> None:
     entries = history.all()
     if not entries:
         print("Todavia no hay carreras guardadas.")

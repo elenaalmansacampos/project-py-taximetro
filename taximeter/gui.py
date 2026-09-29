@@ -6,9 +6,9 @@ from typing import Callable
 
 import customtkinter as ctk
 
-from taximeter.auth import PasswordAuth
+from taximeter.auth import CorruptCredentialsError, PasswordAuth
 from taximeter.config import RatesConfigurationError, load_rates
-from taximeter.history import TripHistory
+from taximeter.database import TripHistory
 from taximeter.taximeter import TaxiStatus, Taximeter
 
 
@@ -48,6 +48,8 @@ class TaximeterApp:
 
         if not self.auth.credentials_exist():
             self._show_setup()
+        elif self.auth.load() is None:
+            self._show_reset()
         else:
             self._show_login()
 
@@ -84,31 +86,30 @@ class TaximeterApp:
         )
 
     def _show_setup(self) -> None:
+        self._show_password_form("Crear contraseña")
+
+    def _show_reset(self) -> None:
+        self._show_password_form(
+            "Restablecer contraseña",
+            "El archivo de credenciales esta dañado. "
+            "Crea una contraseña nueva para continuar.",
+        )
+
+    def _show_password_form(self, title: str, message: str | None = None) -> None:
         self._clear()
-        card = self._center_card()
-
-        ctk.CTkLabel(
-            card, text="Crear contraseña", font=("Arial", 24, "bold"), text_color=TEXT
-        ).grid(row=0, column=0, pady=(36, 4))
-        ctk.CTkLabel(
-            card, text="Protege el acceso al taxímetro", font=("Arial", 13), text_color=MUTED
-        ).grid(row=1, column=0, pady=(0, 24))
-
-        ctk.CTkLabel(
-            card, text="Nueva contraseña", font=("Arial", 14), text_color=TEXT, anchor="w"
-        ).grid(row=2, column=0, padx=32, sticky="ew", pady=(0, 6))
-        password = self._entry(card, show="*")
-        password.grid(row=3, column=0, padx=32, sticky="ew", pady=(0, 14))
-
-        ctk.CTkLabel(
-            card, text="Repite la contraseña", font=("Arial", 14), text_color=TEXT, anchor="w"
-        ).grid(row=4, column=0, padx=32, sticky="ew", pady=(0, 6))
-        repeated = self._entry(card, show="*")
-        repeated.grid(row=5, column=0, padx=32, sticky="ew", pady=(0, 6))
-
-        ctk.CTkLabel(
-            card, text="Mínimo 4 caracteres", font=("Arial", 12), text_color=MUTED, anchor="w"
-        ).grid(row=6, column=0, padx=32, sticky="ew")
+        tk.Label(self.root, text=title, font=("Arial", 24, "bold")).pack(pady=32)
+        if message is not None:
+            tk.Label(
+                self.root,
+                text=message,
+                font=("Arial", 14),
+                wraplength=440,
+                justify="center",
+            ).pack(padx=32, pady=(0, 16))
+        password = tk.Entry(self.root, show="*", font=("Arial", 18))
+        password.pack(padx=40, fill="x")
+        repeated = tk.Entry(self.root, show="*", font=("Arial", 18))
+        repeated.pack(padx=40, pady=16, fill="x")
 
         def save() -> None:
             if password.get() != repeated.get():
@@ -118,6 +119,12 @@ class TaximeterApp:
                 self.auth.create_password(password.get())
             except ValueError as error:
                 messagebox.showerror("Error", str(error))
+                return
+            except OSError as error:
+                logger.exception("gui_credentials_write_error")
+                messagebox.showerror(
+                    "Error", f"No se pudo guardar la contraseña: {error}"
+                )
                 return
             self._show_meter()
 
@@ -154,6 +161,11 @@ class TaximeterApp:
         def login() -> None:
             try:
                 authenticated = self.auth.verify(password.get())
+            except CorruptCredentialsError as error:
+                logger.exception("gui_credentials_corrupted")
+                messagebox.showerror("Error", str(error))
+                self._show_reset()
+                return
             except Exception:
                 logger.exception("gui_authentication_error")
                 messagebox.showerror("Error", "No se pudo verificar la contraseña")
