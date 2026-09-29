@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from taximeter.history import TripHistory
+from taximeter.history import CsvTripHistory
 from taximeter.taximeter import TripSummary
 
 
@@ -13,7 +13,7 @@ class TripHistoryTest(unittest.TestCase):
         temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(temporary_directory.cleanup)
         self.path = Path(temporary_directory.name) / "data" / "historial.csv"
-        self.history = TripHistory(self.path)
+        self.history = CsvTripHistory(self.path)
 
     def test_add_creates_directory_header_and_entry(self) -> None:
         summary = TripSummary(duration_seconds=30.456, amount=1.234)
@@ -49,7 +49,7 @@ class TripHistoryTest(unittest.TestCase):
             self.history.add(TripSummary(duration_seconds=30, amount=1.20))
             self.history.add(TripSummary(duration_seconds=25, amount=1.10))
 
-        entries = TripHistory(self.path).all()
+        entries = CsvTripHistory(self.path).all()
 
         self.assertEqual([entry.date for entry in entries], dates)
         self.assertAlmostEqual(entries[0].duration_seconds, 30)
