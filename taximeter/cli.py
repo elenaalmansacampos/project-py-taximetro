@@ -75,6 +75,8 @@ def main() -> None:
             return
 
         if args.gui:
+            from taximeter.gui import run_gui
+
             run_gui()
             return
 
