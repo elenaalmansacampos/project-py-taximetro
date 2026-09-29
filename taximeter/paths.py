@@ -12,6 +12,7 @@ RATES_FILENAME = "tarifas.json"
 HISTORY_FILENAME = "historial_carreras.csv"
 CREDENTIALS_FILENAME = "credentials.json"
 LOG_FILENAME = "taximetro.log"
+DATABASE_FILENAME = "taximetro.db"
 
 
 def persistent_home() -> Path | None:
@@ -46,6 +47,10 @@ def history_path() -> Path:
 
 def credentials_path() -> Path:
     return data_dir() / CREDENTIALS_FILENAME
+
+
+def database_path() -> Path:
+    return data_dir() / DATABASE_FILENAME
 
 
 def log_path() -> Path:
