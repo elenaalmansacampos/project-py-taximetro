@@ -1,0 +1,16 @@
+services:
+  taximetro:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: taximetro:latest
+    environment:
+      TAXIMETER_HOME: /var/lib/taximetro
+    volumes:
+      - taximetro-data:/var/lib/taximetro
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  taximetro-data:

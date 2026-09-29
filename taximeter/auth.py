@@ -8,8 +8,10 @@ import json
 import os
 from pathlib import Path
 
+from taximeter import paths
 
-CREDENTIALS_PATH = Path("data/credentials.json")
+
+CREDENTIALS_PATH = paths.credentials_path()
 PBKDF2_ITERATIONS = 600_000
 
 
@@ -33,8 +35,11 @@ class PasswordAuth:
             "iterations": PBKDF2_ITERATIONS,
         }
 
-        with self.path.open("w", encoding="utf-8") as file:
+        temporary = self.path.with_name(self.path.name + ".tmp")
+        with temporary.open("w", encoding="utf-8") as file:
             json.dump(payload, file, indent=2)
+        temporary.chmod(0o600)
+        temporary.replace(self.path)
 
     def verify(self, password: str) -> bool:
         with self.path.open("r", encoding="utf-8") as file:

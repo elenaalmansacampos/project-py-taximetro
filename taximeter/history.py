@@ -5,10 +5,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from taximeter import paths
 from taximeter.taximeter import TripSummary
 
 
-HISTORY_PATH = Path("data/historial_carreras.csv")
+HISTORY_PATH = paths.history_path()
 
 
 @dataclass(frozen=True)
@@ -19,8 +20,8 @@ class HistoryEntry:
 
 
 class TripHistory:
-    def __init__(self, path: Path = HISTORY_PATH) -> None:
-        self.path = path
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = paths.history_path() if path is None else Path(path)
 
     def add(self, summary: TripSummary) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
