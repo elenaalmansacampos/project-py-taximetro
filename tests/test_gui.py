@@ -264,8 +264,10 @@ class CorruptCredentialsRecoveryTest(GuiTestCase):
         with patch.object(gui.messagebox, "showerror") as show_error:
             app._show_login()
             self.corrupt_credentials()
-            self.submit_login("secreto123")
+            with self.assertLogs(gui.logger, level="ERROR") as logs:
+                self.submit_login("secreto123")
 
+        self.assertIn("gui_credentials_corrupted", "\n".join(logs.output))
         self.assertIn("dañado", show_error.call_args[0][1])
         self.assertIn("Restablecer contraseña", self.labels_text())
 

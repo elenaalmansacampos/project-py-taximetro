@@ -7,12 +7,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlsplit
 
+from taximeter import panel
 from taximeter.history import HistoryEntry, HistoryRepository
 
 
 logger = logging.getLogger(__name__)
 
 TRIPS_PATH = "/api/v1/trips"
+PANEL_PATH = "/"
 DEFAULT_API_HOST = "127.0.0.1"
 DEFAULT_API_PORT = 8000
 ALLOWED_METHOD = "GET"
@@ -42,24 +44,29 @@ class ApiServer(ThreadingHTTPServer):
 
 
 class TripRequestHandler(BaseHTTPRequestHandler):
-    """Sirve unicamente la consulta del historial; no expone escritura."""
+    """Sirve la consulta del historial en JSON y como panel web; no expone escritura."""
 
     server_version = "TaximeterAPI/1.0"
     protocol_version = "HTTP/1.1"
 
     def do_GET(self) -> None:
-        if urlsplit(self.path).path != TRIPS_PATH:
-            self._send_error(
-                HTTPStatus.NOT_FOUND,
-                "not_found",
-                f"Recurso no encontrado. El historial se consulta en {TRIPS_PATH}.",
-            )
+        path = urlsplit(self.path).path
+        if path == TRIPS_PATH:
+            self._serve_trips()
             return
+        if path == PANEL_PATH:
+            self._serve_panel()
+            return
+        self._send_error(
+            HTTPStatus.NOT_FOUND,
+            "not_found",
+            f"Recurso no encontrado. El historial se consulta en {TRIPS_PATH} "
+            f"y el panel web en {PANEL_PATH}.",
+        )
 
-        try:
-            entries = self.server.history.all()
-        except Exception:
-            logger.exception("api_trips_error")
+    def _serve_trips(self) -> None:
+        entries = self._read_history("api_trips_error")
+        if entries is None:
             self._send_error(
                 HTTPStatus.INTERNAL_SERVER_ERROR,
                 "internal_error",
@@ -69,6 +76,25 @@ class TripRequestHandler(BaseHTTPRequestHandler):
 
         logger.info("api_trips_served count=%s", len(entries))
         self._send_json(HTTPStatus.OK, [serialize_trip(entry) for entry in entries])
+
+    def _serve_panel(self) -> None:
+        entries = self._read_history("panel_render_error")
+        if entries is None:
+            self._send_html(
+                HTTPStatus.INTERNAL_SERVER_ERROR, panel.render_error()
+            )
+            return
+
+        logger.info("panel_served count=%s", len(entries))
+        self._send_html(HTTPStatus.OK, panel.render_panel(entries))
+
+    def _read_history(self, event: str) -> list[HistoryEntry] | None:
+        """Lee el historial en cada peticion; None si el repositorio falla."""
+        try:
+            return self.server.history.all()
+        except Exception:
+            logger.exception(event)
+            return None
 
     def do_HEAD(self) -> None:
         self._send_method_not_allowed(include_body=False)
@@ -93,8 +119,8 @@ class TripRequestHandler(BaseHTTPRequestHandler):
 
     def _send_method_not_allowed(self, include_body: bool = True) -> None:
         message = (
-            f"Solo se admite {ALLOWED_METHOD} sobre {TRIPS_PATH}. "
-            "La API es de solo lectura."
+            f"Solo se admite {ALLOWED_METHOD} sobre {TRIPS_PATH} y {PANEL_PATH}. "
+            "El servicio es de solo lectura."
         )
         body = json.dumps(
             {"error": "method_not_allowed", "message": message}, ensure_ascii=False
@@ -112,6 +138,11 @@ class TripRequestHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self._send_body(body, include_body=True)
+
+    def _send_html(self, status: HTTPStatus, markup: str) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self._send_body(markup, include_body=True)
 
     def _send_body(self, body: bytes | str, include_body: bool = True) -> None:
         if isinstance(body, str):

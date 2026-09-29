@@ -111,7 +111,16 @@ class InvalidRequestTest(ApiTestCase):
     def test_unknown_paths_return_404(self) -> None:
         base_url = self.serve()
 
-        for path in ("/", "/api", "/api/v1", "/api/v1/trip", "/api/v2/trips"):
+        # "/" es el panel web (ver tests/test_panel.py), no una ruta desconocida.
+        for path in (
+            "/api",
+            "/api/v1",
+            "/api/v1/trip",
+            "/api/v1/trips/1",
+            "/api/v2/trips",
+            "/panel",
+            "/index.html",
+        ):
             with self.subTest(ruta=path):
                 status, _, body = request(f"{base_url}{path}")
 

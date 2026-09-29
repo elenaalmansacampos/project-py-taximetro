@@ -4,7 +4,8 @@
 
 Implementada. La API se construye con `http.server` de la biblioteca estandar
 (`ThreadingHTTPServer`), sin anadir dependencias externas, para no romper la
-promesa del proyecto de funcionar solo con Python 3.10 o superior.
+promesa del proyecto de funcionar solo con Python 3.10 o superior. El mismo
+servicio publica tambien el panel web descrito en `docs/prod-03-panel-web.md`.
 
 ## Objetivo
 
@@ -20,7 +21,8 @@ python3 main.py --api
 ```
 
 El servicio escucha en `http://127.0.0.1:8000` por defecto y muestra por
-consola la URL exacta del endpoint. Se detiene con `Ctrl+C`.
+consola las dos URLs disponibles: el panel web en `/` y la API en
+`/api/v1/trips`. Se detiene con `Ctrl+C`.
 
 La direccion y el puerto son configurables:
 
@@ -40,15 +42,17 @@ Si la base aun no existe, se crea vacia; conviene ejecutar antes
 
 | Metodo | Ruta | Descripcion |
 | --- | --- | --- |
-| `GET` | `/api/v1/trips` | Devuelve todas las carreras registradas |
+| `GET` | `/api/v1/trips` | Devuelve todas las carreras registradas en JSON |
+| `GET` | `/` | Panel web del historial (`docs/prod-03-panel-web.md`) |
 
 La version va en la ruta (`v1`) para poder evolucionar el contrato sin romper a
 los clientes existentes. Cada carrera se serializa con exactamente tres
 campos: `date`, `duration_seconds` y `amount`. No se exponen identificadores
 internos de la base de datos.
 
-El servicio solo admite `GET`. Cualquier otro metodo devuelve `405` con la
-cabecera `Allow: GET`. La query string se ignora: no hay filtros ni paginacion.
+El servicio solo admite `GET` en sus dos rutas. Cualquier otro metodo devuelve
+`405` con la cabecera `Allow: GET`. La query string se ignora: no hay filtros ni
+paginacion.
 
 ## Ejemplos
 
@@ -108,7 +112,7 @@ curl -i http://127.0.0.1:8000/api/v1/conductores
 HTTP/1.1 404 Not Found
 Content-Type: application/json; charset=utf-8
 
-{"error": "not_found", "message": "Recurso no encontrado. El historial se consulta en /api/v1/trips."}
+{"error": "not_found", "message": "Recurso no encontrado. El historial se consulta en /api/v1/trips y el panel web en /."}
 ```
 
 Metodo no permitido:
@@ -122,7 +126,7 @@ HTTP/1.1 405 Method Not Allowed
 Allow: GET
 Content-Type: application/json; charset=utf-8
 
-{"error": "method_not_allowed", "message": "Solo se admite GET sobre /api/v1/trips. La API es de solo lectura."}
+{"error": "method_not_allowed", "message": "Solo se admite GET sobre /api/v1/trips y /. El servicio es de solo lectura."}
 ```
 
 Todos los errores usan la misma forma, con un codigo estable para consumir
@@ -156,7 +160,7 @@ evento `api_trips_error`.
 | Codigo | Cuando ocurre |
 | --- | --- |
 | `200` | Consulta correcta, incluso con lista vacia |
-| `404` | La ruta no es `/api/v1/trips` |
+| `404` | La ruta no es `/api/v1/trips` ni `/` |
 | `405` | El metodo no es `GET` |
 | `500` | Fallo interno al leer el historial |
 
@@ -169,8 +173,9 @@ evento `api_trips_error`.
 - **Escucha en loopback por defecto:** `127.0.0.1`. Exponer el historial en la
   red es una decision consciente, por eso hay que pasar `--api-host` a mano.
 - **Sin autenticacion:** ver Riesgos pendientes.
-- **Rutas exactas:** `/api/v1/trips/` con barra final devuelve `404`. Se evita
-  accepting dos rutas para el mismo recurso.
+- **Rutas exactas:** solo se sirven `/api/v1/trips` y `/`.
+  `/api/v1/trips/` con barra final devuelve `404`. Se evita aceptar dos rutas
+  para el mismo recurso.
 
 ## Riesgos pendientes
 

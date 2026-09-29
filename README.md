@@ -13,6 +13,7 @@ Tarifas por defecto:
 - Calculo continuo por tramos segun el estado del taxi.
 - Historico persistente en SQLite `data/taximetro.db` y CSV heredado `data/historial_carreras.csv`.
 - API REST de solo lectura para consultar el historial desde otros sistemas.
+- Panel web del historial para revisarlo desde el navegador.
 - Logs tecnicos en `logs/taximetro.log`.
 - Tarifas configurables en `config/tarifas.json`.
 - Tests automatizados con `unittest`.
@@ -79,6 +80,26 @@ La documentacion completa, con ejemplos de respuestas y errores, esta en
 `docs/prod-02-api-rest.md`. La API no requiere contrasena: antes de exponerla
 fuera del vehiculo hay que revisar los riesgos pendientes de ese documento.
 
+## Panel web del historial
+
+El mismo servicio publica el historial como pagina web en la raiz:
+
+```text
+Panel web del historial: http://127.0.0.1:8000/
+```
+
+Basta con abrir `http://127.0.0.1:8000/` en el navegador. Cada carrera aparece
+con fecha, duracion e importe en formato legible, y el panel avisa
+claramente cuando no hay carreras. El HTML se genera en el servidor, sin
+JavaScript ni recursos externos.
+
+El historial se lee de la base en cada peticion, asi que al terminar una carrera
+y recargar la pagina aparece el registro nuevo sin reiniciar el servicio. Es de
+solo lectura: crear, editar, buscar, filtrar y exportar quedan fuera de alcance.
+
+La documentacion completa esta en `docs/prod-03-panel-web.md`. El panel tampoco
+requiere contrasena, con el mismo aviso que la API.
+
 ## Uso GUI
 
 ```bash
@@ -114,6 +135,7 @@ python3 -m unittest
 ├── docs/github-project-tasks.md
 ├── docs/prod-01-migracion-historial.md
 ├── docs/prod-02-api-rest.md
+├── docs/prod-03-panel-web.md
 ├── main.py
 ├── taximeter/
 │   ├── api.py
@@ -125,6 +147,7 @@ python3 -m unittest
 │   ├── history.py
 │   ├── logging_config.py
 │   ├── migration.py
+│   ├── panel.py
 │   └── taximeter.py
 └── tests/
     ├── test_api.py
@@ -137,6 +160,7 @@ python3 -m unittest
     ├── test_history_interfaces.py
     ├── test_logging.py
     ├── test_migration.py
+    ├── test_panel.py
     └── test_taximeter.py
 ```
 
@@ -155,6 +179,8 @@ python3 -m unittest
 | US-09 | Implementada |
 | PROD-01 | Implementada |
 | PROD-02 | Implementada |
+| PROD-03 | Implementada |
 
-La evolucion pendiente de la fase 4 incluye panel web y despliegue; el historial
-ya tiene una base de datos local consultable y una API REST de solo lectura.
+La evolucion pendiente de la fase 4 incluye el despliegue con un solo comando;
+el historial ya tiene una base de datos local consultable, una API REST y un
+panel web.

@@ -8,6 +8,7 @@ import time
 from taximeter.api import (
     DEFAULT_API_HOST,
     DEFAULT_API_PORT,
+    PANEL_PATH,
     TRIPS_PATH,
     create_server,
 )
@@ -111,8 +112,9 @@ def run_api(host: str = DEFAULT_API_HOST, port: int = DEFAULT_API_PORT) -> None:
         server.server_address[0],
         server.server_address[1],
     )
-    print(f"API REST del historial en {server.base_url}{TRIPS_PATH}")
-    print("La API es de solo lectura. Pulsa Ctrl+C para detenerla.")
+    print(f"Panel web del historial: {server.base_url}{PANEL_PATH}")
+    print(f"API REST del historial: {server.base_url}{TRIPS_PATH}")
+    print("El servicio es de solo lectura. Pulsa Ctrl+C para detenerlo.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
