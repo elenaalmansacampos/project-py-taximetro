@@ -8,10 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from taximeter import paths
-from taximeter.config import RatesConfigurationError, load_rates
-from taximeter.history import TripHistory
-from taximeter.taximeter import TaxiStatus, Taximeter
+from taximeter.domain.taximeter import TaxiStatus, Taximeter
+from taximeter.infrastructure import paths
+from taximeter.infrastructure.config import RatesConfigurationError, load_rates
+from taximeter.infrastructure.database import TripHistory
 
 
 EXIT_OK = 0

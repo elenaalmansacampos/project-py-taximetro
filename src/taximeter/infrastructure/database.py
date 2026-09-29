@@ -7,11 +7,12 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
-from taximeter.history import HistoryEntry
-from taximeter.taximeter import TripSummary
+from taximeter.infrastructure import paths
+from taximeter.application.ports import HistoryEntry
+from taximeter.domain.taximeter import TripSummary
 
 
-DEFAULT_DATABASE_PATH = Path("data/taximetro.db")
+DEFAULT_DATABASE_PATH = paths.database_path()
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS trips (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,8 +30,8 @@ CREATE INDEX IF NOT EXISTS idx_trips_date_local
 
 
 class TripHistory:
-    def __init__(self, path: Path = DEFAULT_DATABASE_PATH) -> None:
-        self.path = Path(path)
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = paths.database_path() if path is None else Path(path)
 
     def add(self, summary: TripSummary) -> None:
         date_local = datetime.now().isoformat(timespec="seconds")

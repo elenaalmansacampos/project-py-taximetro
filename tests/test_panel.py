@@ -7,10 +7,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from taximeter import api, panel
-from taximeter.database import TripHistory
-from taximeter.history import HistoryEntry
-from taximeter.taximeter import TripSummary
+from taximeter.interfaces import api
+from taximeter.interfaces.web import panel
+from taximeter.infrastructure.database import TripHistory
+from taximeter.application.ports import HistoryEntry
+from taximeter.domain.taximeter import TripSummary
 
 
 def request(url: str, method: str = "GET"):

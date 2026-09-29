@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from taximeter import paths
+from taximeter.infrastructure import paths
 
 
 class PersistentHomeTest(unittest.TestCase):

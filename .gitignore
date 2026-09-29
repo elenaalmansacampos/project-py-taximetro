@@ -10,3 +10,7 @@ data/
 logs/
 var/
 
+# Artefactos de construccion del paquete (pyproject.toml / setuptools)
+build/
+dist/
+*.egg-info/

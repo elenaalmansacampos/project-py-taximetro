@@ -14,5 +14,8 @@ var
 tests
 docs
 scripts
+build
+dist
+*.egg-info
 Makefile
 docker-compose.yml

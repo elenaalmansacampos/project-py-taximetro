@@ -3,10 +3,10 @@ import unittest
 from contextlib import redirect_stdout
 from unittest.mock import MagicMock, patch
 
-from taximeter import cli, gui
-from taximeter.config import Rates
-from taximeter.history import HistoryEntry
-from taximeter.taximeter import TripSummary
+from taximeter.interfaces import cli, gui
+from taximeter.infrastructure.config import Rates
+from taximeter.application.ports import HistoryEntry
+from taximeter.domain.taximeter import TripSummary
 
 
 SUMMARY = TripSummary(duration_seconds=30, amount=1.20)

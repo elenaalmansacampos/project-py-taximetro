@@ -6,12 +6,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from taximeter.database import (
+from taximeter.application.ports import HistoryEntry
+from taximeter.infrastructure.csv_history import CSV_HISTORY_PATH
+from taximeter.infrastructure.database import (
     DEFAULT_DATABASE_PATH,
     TripHistory,
     record_key_for,
 )
-from taximeter.history import CSV_HISTORY_PATH, HistoryEntry
 
 
 class MigrationError(RuntimeError):

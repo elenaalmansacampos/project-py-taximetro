@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/gui-customtkinter-1F6FEB?style=flat-square" alt="GUI con customtkinter">
-  <img src="https://img.shields.io/badge/tests-62%20OK-4C1?style=flat-square" alt="62 tests OK">
+  <img src="https://img.shields.io/badge/tests-159%20OK-4C1?style=flat-square" alt="159 tests OK">
   <img src="https://img.shields.io/badge/historias-9%2F9-6f42c1?style=flat-square" alt="9 de 9 historias">
   <img src="https://img.shields.io/badge/fase-3%20Arquitectura%20y%20UX-orange?style=flat-square" alt="Fase 3">
 </p>
@@ -38,11 +38,21 @@
 - 📁 **Histórico persistente** en `data/historial_carreras.csv`.
 - ⚙️ **Tarifas configurables** en `config/tarifas.json`.
 - 📝 **Logs técnicos** en `logs/taximetro.log`.
-- ✅ **62 tests automatizados** con `unittest`.
+- ✅ **159 tests automatizados** con `unittest`.
 
 ---
 
 ## 🚀 Uso rápido
+
+El taximetro se puede usar sin instalar nada: `python3 main.py` funciona
+directamente desde el repositorio. Para instalarlo como paquete:
+
+```bash
+pip install -e .            # base: sin dependencias externas
+pip install -e ".[gui]"     # anade customtkinter para la GUI
+```
+
+Instalado, aparece el comando `taximetro`, equivalente a `python3 main.py`.
 
 ### CLI
 
@@ -122,9 +132,14 @@ requiere contrasena, con el mismo aviso que la API.
 ## Uso GUI
 
 ```bash
-pip install -r requirements.txt   # primera vez
+pip install -e ".[gui]"   # primera vez, instala customtkinter
 python3 main.py --gui
 ```
+
+La GUI es la única parte que necesita una dependencia externa
+(`customtkinter`), y va en el extra `gui` para que el despliegue en
+contenedor, que no la usa, no la instale. Sin ese extra, `python3 main.py`
+arranca igual, pero `--gui` falla al importar `customtkinter`.
 
 La primera ejecución solicita crear y confirmar una contraseña; en las siguientes, la GUI requiere autenticarse antes de mostrar el taxímetro. Si la contraseña es incorrecta muestra un error y permite reintentar (se puede confirmar con la tecla <kbd>Enter</kbd>).
 
@@ -202,46 +217,56 @@ make check
 python3 -m unittest
 ```
 
-> **62 tests OK** — cubren dominio, configuración, autenticación, histórico, logging y las dos interfaces (CLI y GUI).
+> **159 tests OK** — cubren dominio, configuración, autenticación, histórico, logging y las dos interfaces (CLI y GUI).
 
 ---
 
 ## 🏗️ Arquitectura
 
-Separación en tres capas: **presentación** (CLI/GUI), **dominio** puro sin E/S y **infraestructura** (ficheros y logs).
+Cuatro capas dentro de `src/taximeter/`. Las dependencias apuntan **hacia
+dentro**: las interfaces conocen la infraestructura, la infraestructura
+conoce el dominio, y el dominio no depende de nada.
 
 ```mermaid
 flowchart TD
-    M["main.py"] --> CLI["🖥️ cli.py"]
-    M --> GUI["🖼️ gui.py"]
+    M["main.py"] --> IF["🖥️ interfaces/"]
+    IF --> APP["📋 application/ports.py"]
+    IF --> INFRA["🔧 infrastructure/"]
+    INFRA --> DOM["⚙️ domain/"]
 
-    CLI --> AUTH["🔐 auth.py"]
-    GUI --> AUTH
-    CLI --> TAX["⚙️ taximeter.py (dominio puro)"]
-    GUI --> TAX
+    IF --> CLI["cli.py"]
+    IF --> GUI["gui.py"]
+    IF --> API["api.py + web/panel.py"]
+    IF --> HC["healthcheck.py"]
 
-    TAX --> CFG["📄 config.py"]
-    TAX --> HIS["📁 history.py"]
-    CLI --> LOG["📝 logging_config.py"]
+    INFRA --> AUTH["🔐 auth.py"]
+    INFRA --> DB["🗄️ database.py"]
+    INFRA --> CSVAD["📁 csv_history.py"]
+    INFRA --> CFG["📄 config.py"]
+    INFRA --> LOG["📝 logging_config.py"]
+    INFRA --> PATHS["📍 paths.py"]
+
+    DOM --> TAX["taximeter.py + rates.py"]
 
     AUTH --> CRED[("data/credentials.json<br/>salt + hash")]
-    HIS --> CSV[("data/historial_carreras.csv")]
+    DB --> SQLITE[("data/taximetro.db")]
+    CSVAD --> CSV[("data/historial_carreras.csv")]
     CFG --> JSON[("config/tarifas.json")]
     LOG --> LOGF[("logs/taximetro.log")]
 
-    style TAX fill:#ffd54f,stroke:#f57f17,color:#000
-    style AUTH fill:#ef9a9a,stroke:#c62828,color:#000
-    style CFG fill:#a5d6a7,stroke:#2e7d32,color:#000
-    style HIS fill:#90caf9,stroke:#1565c0,color:#000
-    style LOG fill:#ce93d8,stroke:#6a1b9a,color:#000
+    style DOM fill:#ffd54f,stroke:#f57f17,color:#000
+    style APP fill:#ce93d8,stroke:#6a1b9a,color:#000
+    style INFRA fill:#a5d6a7,stroke:#2e7d32,color:#000
+    style IF fill:#90caf9,stroke:#1565c0,color:#000
 ```
 
 **Claves de diseño:**
 
-- 🧠 `Taximeter` es **código de dominio puro**: no hace E/S y recibe las tarifas y un **reloj inyectado**, lo que permite simular carreras de 30 s en microsegundos durante los tests.
-- 🔌 **Sin acoplamiento a ficheros**: cada componente recibe su ruta por parámetro con un valor por defecto.
-- 🔁 **CLI y GUI comparten el mismo dominio**: ambas usan `Taximeter`, `TripHistory` y `PasswordAuth`.
-- 🛡️ **Validación exhaustiva** de la configuración: tipos, valores no negativos, números finitos y JSON mal formado.
+- 🧠 `domain/` es **código de dominio puro**: no hace E/S y recibe las tarifas y un **reloj inyectado**, lo que permite simular carreras de 30 s en microsegundos durante los tests.
+- 🔒 `application/ports.py` define el contrato `HistoryRepository`; el dominio no sabe si el historial vive en SQLite o en CSV.
+- 🔌 **Sin acoplamiento a ficheros**: cada componente recibe su ruta por parámetro con un valor por defecto, resuelto en el momento de construirlo y no al importar, para que `TAXIMETER_HOME` se tenga en cuenta.
+- 🔁 **CLI, GUI, API y panel comparten el mismo dominio**.
+- 🛡️ `tests/test_architecture.py` falla si alguna capa importa hacia arriba, de modo que la estructura no se deshace sin avisar.
 
 ---
 
@@ -255,27 +280,42 @@ flowchart TD
 │   ├── github-project-tasks.md
 │   └── prod-04-despliegue.md
 ├── main.py
-├── requirements.txt
-├── taximeter/
-│   ├── api.py
-│   ├── auth.py
-│   ├── cli.py
-│   ├── config.py
-│   ├── database.py
-│   ├── gui.py
-│   ├── healthcheck.py
-│   ├── history.py
-│   ├── logging_config.py
-│   ├── paths.py
-│   └── taximeter.py
+├── pyproject.toml
+├── src/taximeter/
+│   ├── domain/            # sin dependencias: reglas de negocio
+│   │   ├── rates.py
+│   │   └── taximeter.py
+│   ├── application/       # casos de uso y puertos
+│   │   └── ports.py
+│   ├── infrastructure/    # persistencia, ficheros, config y logging
+│   │   ├── auth.py
+│   │   ├── config.py
+│   │   ├── csv_history.py
+│   │   ├── database.py
+│   │   ├── logging_config.py
+│   │   ├── migration.py
+│   │   └── paths.py
+│   └── interfaces/        # CLI, GUI, API, panel y healthcheck
+│       ├── api.py
+│       ├── cli.py
+│       ├── gui.py
+│       ├── healthcheck.py
+│       └── web/panel.py
 ├── tests/
+│   ├── test_api.py
+│   ├── test_architecture.py
+│   ├── test_auth.py
 │   ├── test_cli.py
 │   ├── test_config.py
+│   ├── test_database.py
 │   ├── test_deploy_security.py
+│   ├── test_gui.py
 │   ├── test_healthcheck.py
 │   ├── test_history.py
 │   ├── test_history_interfaces.py
 │   ├── test_logging.py
+│   ├── test_migration.py
+│   ├── test_panel.py
 │   ├── test_paths.py
 │   └── test_taximeter.py
 ├── Dockerfile

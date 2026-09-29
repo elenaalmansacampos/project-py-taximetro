@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from taximeter.history import CsvTripHistory
-from taximeter.taximeter import TripSummary
+from taximeter.domain.taximeter import TripSummary
+from taximeter.infrastructure.csv_history import CsvTripHistory
 
 
 class TripHistoryTest(unittest.TestCase):
@@ -18,7 +18,7 @@ class TripHistoryTest(unittest.TestCase):
     def test_add_creates_directory_header_and_entry(self) -> None:
         summary = TripSummary(duration_seconds=30.456, amount=1.234)
 
-        with patch("taximeter.history.datetime") as datetime_mock:
+        with patch("taximeter.infrastructure.csv_history.datetime") as datetime_mock:
             datetime_mock.now.return_value.isoformat.return_value = (
                 "2026-09-25T10:30:00"
             )
@@ -44,7 +44,7 @@ class TripHistoryTest(unittest.TestCase):
     def test_entries_are_available_from_a_new_history_instance(self) -> None:
         dates = ["2026-09-25T10:30:00", "2026-09-25T11:00:00"]
 
-        with patch("taximeter.history.datetime") as datetime_mock:
+        with patch("taximeter.infrastructure.csv_history.datetime") as datetime_mock:
             datetime_mock.now.return_value.isoformat.side_effect = dates
             self.history.add(TripSummary(duration_seconds=30, amount=1.20))
             self.history.add(TripSummary(duration_seconds=25, amount=1.10))

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from html import escape
 
-from taximeter.history import HistoryEntry
+from taximeter.application.ports import HistoryEntry
 
 
 PAGE_TITLE = "Historial de carreras"

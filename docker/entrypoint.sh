@@ -31,7 +31,7 @@ seed_configuration() {
 
 run_healthcheck() {
     status=0
-    python3 -m taximeter.healthcheck || status=$?
+    python3 -m taximeter.interfaces.healthcheck || status=$?
     if [ "${status}" -ne 0 ]; then
         fail "${status}" "la comprobacion de operatividad ha fallado (codigo ${status})"
     fi

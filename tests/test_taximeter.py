@@ -1,7 +1,7 @@
 import unittest
 
-from taximeter.config import Rates
-from taximeter.taximeter import TaxiStatus, Taximeter
+from taximeter.infrastructure.config import Rates
+from taximeter.domain.taximeter import TaxiStatus, Taximeter
 
 
 class FakeClock:

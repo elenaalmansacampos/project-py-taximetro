@@ -1,26 +1,21 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol, runtime_checkable
 
-from taximeter import paths
-from taximeter.taximeter import TripSummary
-
-
-HISTORY_PATH = paths.history_path()
+from taximeter.application.ports import HistoryEntry
+from taximeter.domain.taximeter import TripSummary
+from taximeter.infrastructure import paths
 
 
-@dataclass(frozen=True)
-class HistoryEntry:
-    date: str
-    duration_seconds: float
-    amount: float
+CSV_HISTORY_PATH = paths.history_path()
+HISTORY_PATH = CSV_HISTORY_PATH
+
+__all__ = ["CSV_HISTORY_PATH", "HISTORY_PATH", "CsvTripHistory"]
 
 
-class TripHistory:
+class CsvTripHistory:
     def __init__(self, path: Path | None = None) -> None:
         self.path = paths.history_path() if path is None else Path(path)
 
@@ -57,4 +52,3 @@ class TripHistory:
 
 
 TripHistory = CsvTripHistory
-

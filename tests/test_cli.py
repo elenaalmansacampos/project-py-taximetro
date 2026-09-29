@@ -4,9 +4,9 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import MagicMock, call, patch
 
-from taximeter import cli
-from taximeter.config import Rates, RatesConfigurationError
-from taximeter.taximeter import TaxiStatus, TripSummary
+from taximeter.interfaces import cli
+from taximeter.infrastructure.config import Rates, RatesConfigurationError
+from taximeter.domain.taximeter import TaxiStatus, TripSummary
 
 
 def _run_cli(

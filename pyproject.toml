@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "taximetro"
+version = "1.0.0"
+description = "Taximetro digital de TaxiTech Solutions"
+readme = "README.md"
+requires-python = ">=3.10"
+# El taximetro funciona solo con la biblioteca estandar: la CLI, la API, el
+# panel web, la migracion y los logs no usan ninguna libreria externa.
+dependencies = []
+
+[project.optional-dependencies]
+# La GUI de escritorio si necesita customtkinter. Se declara aparte para que
+# el despliegue en contenedor, que no la usa, no la instale.
+gui = ["customtkinter>=4.0"]
+
+[project.scripts]
+taximetro = "taximeter.interfaces.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

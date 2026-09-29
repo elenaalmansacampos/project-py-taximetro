@@ -2,24 +2,20 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass
 from pathlib import Path
 
-from taximeter import paths
+from taximeter.domain.rates import Rates
+from taximeter.infrastructure import paths
 
 
 DEFAULT_CONFIG_PATH = paths.rates_path()
 RATE_KEYS = ("stopped_rate_per_second", "moving_rate_per_second")
 
+__all__ = ["Rates", "RatesConfigurationError", "load_rates"]
+
 
 class RatesConfigurationError(ValueError):
     pass
-
-
-@dataclass(frozen=True)
-class Rates:
-    stopped_rate_per_second: float
-    moving_rate_per_second: float
 
 
 def load_rates(path: Path = DEFAULT_CONFIG_PATH) -> Rates:

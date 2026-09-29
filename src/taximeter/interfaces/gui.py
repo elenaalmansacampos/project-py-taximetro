@@ -6,10 +6,10 @@ from typing import Callable
 
 import customtkinter as ctk
 
-from taximeter.auth import CorruptCredentialsError, PasswordAuth
-from taximeter.config import RatesConfigurationError, load_rates
-from taximeter.database import TripHistory
-from taximeter.taximeter import TaxiStatus, Taximeter
+from taximeter.infrastructure.auth import CorruptCredentialsError, PasswordAuth
+from taximeter.infrastructure.config import RatesConfigurationError, load_rates
+from taximeter.infrastructure.database import TripHistory
+from taximeter.domain.taximeter import TaxiStatus, Taximeter
 
 
 logger = logging.getLogger(__name__)
@@ -97,19 +97,32 @@ class TaximeterApp:
 
     def _show_password_form(self, title: str, message: str | None = None) -> None:
         self._clear()
-        tk.Label(self.root, text=title, font=("Arial", 24, "bold")).pack(pady=32)
+        card = self._center_card()
+
+        row = 0
+        ctk.CTkLabel(
+            card, text=title, font=("Arial", 24, "bold"), text_color=TEXT
+        ).grid(row=row, column=0, pady=(56, 4))
+        row += 1
         if message is not None:
-            tk.Label(
-                self.root,
+            ctk.CTkLabel(
+                card,
                 text=message,
                 font=("Arial", 14),
-                wraplength=440,
+                text_color=MUTED,
+                wraplength=380,
                 justify="center",
-            ).pack(padx=32, pady=(0, 16))
-        password = tk.Entry(self.root, show="*", font=("Arial", 18))
-        password.pack(padx=40, fill="x")
-        repeated = tk.Entry(self.root, show="*", font=("Arial", 18))
-        repeated.pack(padx=40, pady=16, fill="x")
+            ).grid(row=row, column=0, padx=32, pady=(0, 24))
+            row += 1
+
+        password = self._entry(card, show="*", placeholder_text="Contraseña")
+        password.grid(row=row, column=0, padx=32, pady=(0, 8), sticky="ew")
+        row += 1
+        repeated = self._entry(
+            card, show="*", placeholder_text="Repite la contraseña"
+        )
+        repeated.grid(row=row, column=0, padx=32, pady=(0, 8), sticky="ew")
+        row += 1
 
         def save() -> None:
             if password.get() != repeated.get():
@@ -138,7 +151,7 @@ class TaximeterApp:
             fg_color=ACCENT,
             hover_color=ACCENT_HOVER,
             text_color=INK,
-        ).grid(row=7, column=0, padx=32, pady=(16, 36), sticky="ew")
+        ).grid(row=row, column=0, padx=32, pady=(8, 56), sticky="ew")
 
         password.bind("<Return>", lambda event: save())
         repeated.bind("<Return>", lambda event: save())

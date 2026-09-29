@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from taximeter.config import Rates, RatesConfigurationError, load_rates
-from taximeter.taximeter import TaxiStatus, Taximeter
+from taximeter.infrastructure.config import Rates, RatesConfigurationError, load_rates
+from taximeter.domain.taximeter import TaxiStatus, Taximeter
 
 
 class FakeClock:

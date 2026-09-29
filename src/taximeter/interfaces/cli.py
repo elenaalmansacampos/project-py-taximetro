@@ -5,25 +5,24 @@ import logging
 import sys
 import time
 
-from taximeter.api import (
+from taximeter.interfaces.api import (
     DEFAULT_API_HOST,
     DEFAULT_API_PORT,
     PANEL_PATH,
     TRIPS_PATH,
     create_server,
 )
-from taximeter.auth import PasswordAuth, ensure_cli_password
-from taximeter.config import RatesConfigurationError, load_rates
-from taximeter.database import TripHistory
-from taximeter.gui import run_gui
-from taximeter.history import HistoryRepository
-from taximeter.logging_config import configure_logging
-from taximeter.migration import (
+from taximeter.infrastructure.auth import PasswordAuth, ensure_cli_password
+from taximeter.infrastructure.config import RatesConfigurationError, load_rates
+from taximeter.infrastructure.database import TripHistory
+from taximeter.application.ports import HistoryRepository
+from taximeter.infrastructure.logging_config import configure_logging
+from taximeter.infrastructure.migration import (
     MigrationError,
     format_migration_report,
     migrate_csv_to_database,
 )
-from taximeter.taximeter import TaxiStatus, Taximeter
+from taximeter.domain.taximeter import TaxiStatus, Taximeter
 
 
 logger = logging.getLogger(__name__)
@@ -75,7 +74,7 @@ def main() -> None:
             return
 
         if args.gui:
-            from taximeter.gui import run_gui
+            from taximeter.interfaces.gui import run_gui
 
             run_gui()
             return

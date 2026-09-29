@@ -10,12 +10,12 @@ import os
 from pathlib import Path
 from typing import Any
 
-from taximeter import paths
+from taximeter.infrastructure import paths
 
 
 CREDENTIALS_PATH = paths.credentials_path()
-PBKDF2_ITERATIONS = 600_000
 MINIMUM_PASSWORD_LENGTH = 4
+PBKDF2_ITERATIONS = 600_000
 CREDENTIALS_FILE_MODE = 0o600
 
 
@@ -24,8 +24,8 @@ class CorruptCredentialsError(RuntimeError):
 
 
 class PasswordAuth:
-    def __init__(self, path: Path = CREDENTIALS_PATH) -> None:
-        self.path = Path(path)
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = paths.credentials_path() if path is None else Path(path)
 
     def credentials_exist(self) -> bool:
         return self.path.exists()
@@ -39,17 +39,26 @@ class PasswordAuth:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         salt = os.urandom(16)
         password_hash = _hash_password(password, salt)
-        payload = {
-            "salt": base64.b64encode(salt).decode("ascii"),
-            "password_hash": base64.b64encode(password_hash).decode("ascii"),
-            "iterations": PBKDF2_ITERATIONS,
-        }
+        self._write_payload(
+            {
+                "salt": base64.b64encode(salt).decode("ascii"),
+                "password_hash": base64.b64encode(password_hash).decode("ascii"),
+                "iterations": PBKDF2_ITERATIONS,
+            }
+        )
 
-        temporary = self.path.with_name(self.path.name + ".tmp")
-        with temporary.open("w", encoding="utf-8") as file:
-            json.dump(payload, file, indent=2)
-        temporary.chmod(0o600)
-        temporary.replace(self.path)
+    def load(self) -> dict[str, Any] | None:
+        """Devuelve el contenido almacenado, o None si falta o es ilegible."""
+        if not self.path.exists():
+            return None
+
+        try:
+            with self.path.open("r", encoding="utf-8") as file:
+                payload = json.load(file)
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return None
+
+        return payload if _is_valid_payload(payload) else None
 
     def verify(self, password: str) -> bool:
         salt, expected_hash, iterations = self._read_credentials()

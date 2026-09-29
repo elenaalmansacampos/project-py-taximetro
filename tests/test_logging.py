@@ -6,8 +6,9 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from taximeter import cli, gui, logging_config
-from taximeter.config import Rates, RatesConfigurationError
+from taximeter.infrastructure import logging_config
+from taximeter.infrastructure.config import Rates, RatesConfigurationError
+from taximeter.interfaces import cli, gui
 
 
 class LoggingConfigurationTest(unittest.TestCase):
