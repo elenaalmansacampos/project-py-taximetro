@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+
+from taximeter import paths
 
 
-LOG_PATH = Path("logs/taximetro.log")
+LOG_PATH = paths.log_path()
 
 
 def configure_logging() -> None:
