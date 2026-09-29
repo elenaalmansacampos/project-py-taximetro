@@ -103,7 +103,7 @@ class GuiLoggingTest(unittest.TestCase):
         error = RatesConfigurationError("No existe el fichero de tarifas")
 
         with (
-            patch.object(gui.tk, "Tk", return_value=root),
+            patch.object(gui.ctk, "CTk", return_value=root),
             patch.object(gui, "TaximeterApp", side_effect=error),
             patch.object(gui.messagebox, "showerror") as show_error,
             self.assertLogs(gui.logger, level=logging.ERROR) as logs,

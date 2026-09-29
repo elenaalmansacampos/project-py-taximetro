@@ -4,6 +4,7 @@ import csv
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Protocol, runtime_checkable
 
 from taximeter import paths
 from taximeter.taximeter import TripSummary
@@ -53,4 +54,7 @@ class TripHistory:
                 )
                 for row in reader
             ]
+
+
+TripHistory = CsvTripHistory
 
