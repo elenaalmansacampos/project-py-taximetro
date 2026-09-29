@@ -379,5 +379,62 @@ class HistoryModalTest(GuiTestCase):
         show_error.assert_called_once_with("Error", "No se pudo consultar el historial")
 
 
+class FinishModalTest(GuiTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.app = self.build_meter_app()
+        self.app._show_meter()
+        self.addCleanup(lambda: [w.destroy() for w in self.root.winfo_children()
+                                 if isinstance(w, ctk.CTkToplevel)])
+
+    def modal_labels(self) -> list[str]:
+        self.app._finish()
+        self.root.update()
+        modals = [
+            widget
+            for widget in self.root.winfo_children()
+            if isinstance(widget, ctk.CTkToplevel)
+        ]
+        self.assertEqual(len(modals), 1)
+        return [label.cget("text") for label in _widgets(modals[0], ctk.CTkLabel)]
+
+    def test_finish_opens_a_modal_with_the_total(self) -> None:
+        self.app.taximeter.start_trip()
+        self.app.taximeter.set_status(TaxiStatus.MOVING)
+        self.clock.advance(120)
+
+        texts = self.modal_labels()
+
+        self.assertIn("Carrera finalizada", texts)
+        self.assertIn("Total a cobrar", texts)
+        self.assertIn("6.00 EUR", texts)
+        self.assertIn("120 s", texts)
+
+    def test_finish_saves_the_trip_and_closes_with_cobrar(self) -> None:
+        self.app.taximeter.start_trip()
+        self.app.taximeter.set_status(TaxiStatus.MOVING)
+        self.clock.advance(60)
+
+        self.app._finish()
+        self.root.update()
+        modal = next(
+            widget
+            for widget in self.root.winfo_children()
+            if isinstance(widget, ctk.CTkToplevel)
+        )
+
+        self.app.history.add.assert_called_once()
+
+        cobrar = next(
+            button
+            for button in _widgets(modal, ctk.CTkButton)
+            if button.cget("text") == "Cobrar"
+        )
+        cobrar.invoke()
+        self.root.update()
+
+        self.assertFalse(modal.winfo_exists())
+
+
 if __name__ == "__main__":
     unittest.main()

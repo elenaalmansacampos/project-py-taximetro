@@ -84,11 +84,11 @@ class GuiHistoryTest(unittest.TestCase):
         app.taximeter = MagicMock()
         app.taximeter.finish_trip.return_value = SUMMARY
 
-        with patch.object(gui.messagebox, "showinfo") as show_info:
+        with patch.object(app, "_finish_modal") as finish_modal:
             app._finish()
 
         history.add.assert_called_once_with(SUMMARY)
-        show_info.assert_called_once_with("Total", "Total a cobrar: 1.20 EUR")
+        finish_modal.assert_called_once_with(SUMMARY)
 
     def test_opens_the_modal_with_the_stored_entries(self) -> None:
         history = MagicMock()

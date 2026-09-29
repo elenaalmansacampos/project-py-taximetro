@@ -11,7 +11,7 @@ from taximeter.application.ports import HistoryEntry
 from taximeter.infrastructure.auth import CorruptCredentialsError, PasswordAuth
 from taximeter.infrastructure.config import RatesConfigurationError, load_rates
 from taximeter.infrastructure.database import TripHistory
-from taximeter.domain.taximeter import TaxiStatus, Taximeter
+from taximeter.domain.taximeter import TaxiStatus, Taximeter, TripSummary
 
 
 logger = logging.getLogger(__name__)
@@ -375,7 +375,67 @@ class TaximeterApp:
             logger.exception("gui_history_write_error")
             messagebox.showerror("Error", "No se pudo guardar la carrera")
         logger.info("gui_trip_finished amount=%.2f", summary.amount)
-        messagebox.showinfo("Total", f"Total a cobrar: {summary.amount:.2f} EUR")
+        self._finish_modal(summary)
+
+    def _finish_modal(self, summary: TripSummary) -> None:
+        modal = ctk.CTkToplevel(self.root)
+        modal.title("Carrera finalizada")
+        modal.geometry("360x330")
+        modal.resizable(False, False)
+        modal.configure(fg_color=BG)
+        modal.transient(self.root)
+        try:
+            modal.grab_set()
+        except tk.TclError:
+            pass
+
+        modal.grid_columnconfigure(0, weight=1)
+
+        card = ctk.CTkFrame(
+            modal,
+            fg_color=CARD,
+            corner_radius=20,
+            border_width=1,
+            border_color=BORDER,
+        )
+        card.grid(row=0, column=0, padx=24, pady=24, sticky="nsew")
+        card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            card,
+            text="Carrera finalizada",
+            font=("Arial", 18, "bold"),
+            text_color=TEXT,
+        ).grid(row=0, column=0, pady=(28, 2))
+        ctk.CTkLabel(
+            card, text="Total a cobrar", font=("Arial", 14), text_color=MUTED
+        ).grid(row=1, column=0, pady=(0, 4))
+        ctk.CTkLabel(
+            card,
+            text=f"{summary.amount:.2f} EUR",
+            font=("Arial", 40, "bold"),
+            text_color=ACCENT,
+        ).grid(row=2, column=0, pady=(0, 4))
+        ctk.CTkLabel(
+            card,
+            text=f"{summary.duration_seconds:.0f} s",
+            font=("Arial", 15),
+            text_color=MUTED,
+        ).grid(row=3, column=0, pady=(0, 20))
+
+        ctk.CTkButton(
+            card,
+            text="Cobrar",
+            command=modal.destroy,
+            font=("Arial", 16),
+            height=44,
+            corner_radius=12,
+            fg_color=SUCCESS,
+            hover_color=SUCCESS_HOVER,
+            text_color=INK,
+        ).grid(row=4, column=0, padx=24, pady=(0, 28), sticky="ew")
+
+        modal.after(50, modal.focus)
 
     def _show_history(self) -> None:
         try:
