@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 from tkinter import messagebox
 from typing import Callable
 
 import customtkinter as ctk
 
+from taximeter.application.ports import HistoryEntry
 from taximeter.infrastructure.auth import CorruptCredentialsError, PasswordAuth
 from taximeter.infrastructure.config import RatesConfigurationError, load_rates
 from taximeter.infrastructure.database import TripHistory
@@ -56,10 +58,48 @@ class TaximeterApp:
     def _clear(self) -> None:
         for child in self.root.winfo_children():
             child.destroy()
+        for index in range(5):
+            self.root.grid_rowconfigure(index, weight=0)
+        self.root.grid_columnconfigure(0, weight=0)
+
+    def _header(
+        self,
+        actions: list[tuple[str, Callable[[], None]]] | None = None,
+    ) -> ctk.CTkFrame:
+        header = ctk.CTkFrame(self.root, fg_color=CARD, corner_radius=0)
+        header.grid(row=0, column=0, sticky="ew")
+        header.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            header,
+            text="TaxiTech Taximetro",
+            font=("Arial", 20, "bold"),
+            text_color=TEXT,
+        ).grid(row=0, column=0, padx=20, pady=16, sticky="w")
+
+        if actions:
+            bar = ctk.CTkFrame(header, fg_color="transparent")
+            bar.grid(row=0, column=2, padx=16, pady=10, sticky="e")
+            for index, (text, command) in enumerate(actions):
+                ctk.CTkButton(
+                    bar,
+                    text=text,
+                    command=command,
+                    font=("Arial", 14),
+                    width=96,
+                    height=36,
+                    corner_radius=10,
+                    fg_color=SURFACE,
+                    hover_color=NEUTRAL_HOVER,
+                    text_color=TEXT,
+                ).grid(row=0, column=index, padx=4)
+
+        return header
 
     def _center_card(self) -> ctk.CTkFrame:
+        self._header()
         self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_rowconfigure(1, weight=1)
         card = ctk.CTkFrame(
             self.root,
             fg_color=CARD,
@@ -67,7 +107,7 @@ class TaximeterApp:
             border_width=1,
             border_color=BORDER,
         )
-        card.grid(row=0, column=0, padx=48, pady=48, sticky="nsew")
+        card.grid(row=1, column=0, padx=48, pady=48, sticky="nsew")
         card.grid_columnconfigure(0, weight=1)
         return card
 
@@ -209,14 +249,17 @@ class TaximeterApp:
         self._clear()
         self.root.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(
-            self.root, text="TaxiTech Taximetro", font=("Arial", 20, "bold"), text_color=MUTED
-        ).grid(row=0, column=0, pady=(28, 0))
+        self._header(
+            [
+                ("Historial", self._show_history),
+                ("Salir", self._show_login),
+            ]
+        )
 
         self.amount_label = ctk.CTkLabel(
             self.root, text="0.00 EUR", font=("Arial", 52, "bold"), text_color=TEXT
         )
-        self.amount_label.grid(row=1, column=0, pady=(12, 0))
+        self.amount_label.grid(row=1, column=0, pady=(28, 0))
 
         self.time_label = ctk.CTkLabel(
             self.root, text="0 s", font=("Arial", 18), text_color=MUTED
@@ -240,7 +283,7 @@ class TaximeterApp:
         self.root.grid_rowconfigure(4, weight=1)
         for index in range(2):
             buttons.columnconfigure(index, weight=1)
-        for index in range(3):
+        for index in range(2):
             buttons.rowconfigure(index, weight=1)
 
         self._button(
@@ -268,17 +311,6 @@ class TaximeterApp:
         )
         self._button(
             buttons, "Finalizar", self._finish, 1, 1, DANGER, DANGER_HOVER, WHITE
-        )
-        self._button(
-            buttons,
-            "Historial",
-            self._show_history,
-            2,
-            0,
-            SURFACE,
-            NEUTRAL_HOVER,
-            TEXT,
-            columnspan=2,
         )
         self._refresh()
 
@@ -352,14 +384,91 @@ class TaximeterApp:
             logger.exception("gui_history_read_error")
             messagebox.showerror("Error", "No se pudo consultar el historial")
             return
-        if not entries:
-            messagebox.showinfo("Historial", "Todavia no hay carreras guardadas.")
-            return
-        text = "\n".join(
-            f"{entry.date} | {entry.duration_seconds:.0f}s | {entry.amount:.2f} EUR"
-            for entry in entries[-10:]
+        self._history_modal(entries)
+
+    def _history_modal(self, entries: list[HistoryEntry]) -> None:
+        modal = ctk.CTkToplevel(self.root)
+        modal.title("Historial de carreras")
+        modal.geometry("480x520")
+        modal.minsize(420, 420)
+        modal.configure(fg_color=BG)
+        modal.transient(self.root)
+        try:
+            modal.grab_set()
+        except tk.TclError:
+            pass
+
+        modal.grid_columnconfigure(0, weight=1)
+        modal.grid_rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            modal,
+            text="Historial de carreras",
+            font=("Arial", 22, "bold"),
+            text_color=TEXT,
+        ).grid(row=0, column=0, padx=24, pady=(24, 12), sticky="w")
+
+        body = ctk.CTkScrollableFrame(
+            modal,
+            fg_color=CARD,
+            corner_radius=16,
+            border_width=1,
+            border_color=BORDER,
         )
-        messagebox.showinfo("Ultimas carreras", text)
+        body.grid(row=1, column=0, padx=24, pady=(0, 16), sticky="nsew")
+        body.grid_columnconfigure(0, weight=1)
+
+        if not entries:
+            ctk.CTkLabel(
+                body,
+                text="Todavia no hay carreras registradas.",
+                font=("Arial", 15),
+                text_color=MUTED,
+            ).grid(row=0, column=0, pady=32)
+        else:
+            for index, entry in enumerate(reversed(entries)):
+                self._history_row(body, index, entry)
+
+        ctk.CTkButton(
+            modal,
+            text="Cerrar",
+            command=modal.destroy,
+            font=("Arial", 16),
+            height=44,
+            corner_radius=12,
+            fg_color=ACCENT,
+            hover_color=ACCENT_HOVER,
+            text_color=INK,
+        ).grid(row=2, column=0, padx=24, pady=(0, 24), sticky="ew")
+
+        modal.after(50, modal.focus)
+
+    def _history_row(
+        self, parent: ctk.CTkFrame, index: int, entry: HistoryEntry
+    ) -> None:
+        row = ctk.CTkFrame(
+            parent,
+            fg_color=SURFACE if index % 2 == 0 else CARD,
+            corner_radius=10,
+        )
+        row.grid(row=index, column=0, padx=8, pady=4, sticky="ew")
+        row.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            row, text=entry.date, font=("Arial", 13), text_color=MUTED
+        ).grid(row=0, column=0, padx=(12, 8), pady=10, sticky="w")
+        ctk.CTkLabel(
+            row,
+            text=f"{entry.duration_seconds:.0f} s",
+            font=("Arial", 13),
+            text_color=MUTED,
+        ).grid(row=0, column=1, sticky="w")
+        ctk.CTkLabel(
+            row,
+            text=f"{entry.amount:.2f} EUR",
+            font=("Arial", 15, "bold"),
+            text_color=ACCENT,
+        ).grid(row=0, column=2, padx=(8, 12), sticky="e")
 
     def _refresh(self) -> None:
         if self.taximeter.active:

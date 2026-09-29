@@ -90,7 +90,7 @@ class GuiHistoryTest(unittest.TestCase):
         history.add.assert_called_once_with(SUMMARY)
         show_info.assert_called_once_with("Total", "Total a cobrar: 1.20 EUR")
 
-    def test_shows_only_ten_most_recent_entries(self) -> None:
+    def test_opens_the_modal_with_the_stored_entries(self) -> None:
         history = MagicMock()
         history.all.return_value = [
             HistoryEntry(
@@ -102,28 +102,20 @@ class GuiHistoryTest(unittest.TestCase):
         ]
         app = self._app_with_history(history)
 
-        with patch.object(gui.messagebox, "showinfo") as show_info:
+        with patch.object(app, "_history_modal") as modal:
             app._show_history()
 
-        show_info.assert_called_once()
-        title, text = show_info.call_args.args
-        lines = text.splitlines()
-        self.assertEqual(title, "Ultimas carreras")
-        self.assertEqual(len(lines), 10)
-        self.assertEqual(lines[0], "2026-09-25T10:02:00 | 2s | 0.02 EUR")
-        self.assertEqual(lines[-1], "2026-09-25T10:11:00 | 11s | 0.11 EUR")
+        modal.assert_called_once_with(history.all.return_value)
 
-    def test_reports_empty_history(self) -> None:
+    def test_opens_the_modal_with_an_empty_history(self) -> None:
         history = MagicMock()
         history.all.return_value = []
         app = self._app_with_history(history)
 
-        with patch.object(gui.messagebox, "showinfo") as show_info:
+        with patch.object(app, "_history_modal") as modal:
             app._show_history()
 
-        show_info.assert_called_once_with(
-            "Historial", "Todavia no hay carreras guardadas."
-        )
+        modal.assert_called_once_with([])
 
 
 if __name__ == "__main__":

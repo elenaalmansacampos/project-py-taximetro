@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import customtkinter as ctk
 
 from taximeter.interfaces import gui
+from taximeter.application.ports import HistoryEntry
 from taximeter.infrastructure.auth import PasswordAuth
 from taximeter.infrastructure.config import Rates
 from taximeter.domain.taximeter import Taximeter, TaxiStatus
@@ -173,14 +174,28 @@ class RealTimeCounterTest(GuiTestCase):
 
         app._show_meter()
         self.root.update_idletasks()
-        buttons = self.meter_buttons()
+        controls = [
+            button
+            for button in self.meter_buttons()
+            if button.cget("text") in {"Iniciar", "Parado", "Marcha", "Finalizar"}
+        ]
 
-        self.assertEqual(len(buttons), 5)
-        for button in buttons:
+        self.assertEqual(len(controls), 4)
+        for button in controls:
             with self.subTest(boton=button.cget("text")):
                 self.assertEqual(int(button.cget("height")), 48)
                 self.assertGreaterEqual(button.winfo_reqwidth(), 100)
                 self.assertGreaterEqual(button.winfo_reqheight(), 40)
+
+    def test_meter_header_offers_history_and_logout(self) -> None:
+        app = self.build_meter_app()
+
+        app._show_meter()
+
+        header_buttons = [button.cget("text") for button in self.meter_buttons()]
+        self.assertIn("Historial", header_buttons)
+        self.assertIn("Salir", header_buttons)
+        self.assertIn("TaxiTech Taximetro", self.label_texts())
 
 
 class PasswordSetupTest(GuiTestCase):
@@ -311,6 +326,57 @@ class CorruptCredentialsRecoveryTest(GuiTestCase):
             gui.TaximeterApp(self.root)
 
         self.assertIn("TaxiTech Taximetro", self.label_texts())
+
+
+class HistoryModalTest(GuiTestCase):
+    def open_history(self, entries) -> ctk.CTkToplevel:
+        self.app.history.all.return_value = entries
+        self.app._show_meter()
+        self.app._show_history()
+        self.root.update()
+        modals = [
+            widget
+            for widget in self.root.winfo_children()
+            if isinstance(widget, ctk.CTkToplevel)
+        ]
+        self.assertEqual(len(modals), 1)
+        return modals[0]
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.app = self.build_meter_app()
+        self.addCleanup(lambda: [w.destroy() for w in self.root.winfo_children()
+                                 if isinstance(w, ctk.CTkToplevel)])
+
+    def test_history_opens_a_modal_with_the_entries(self) -> None:
+        modal = self.open_history(
+            [
+                HistoryEntry(date="2026-09-29T10:00:00", duration_seconds=120, amount=4.2),
+                HistoryEntry(date="2026-09-29T11:00:00", duration_seconds=60, amount=2.5),
+            ]
+        )
+
+        texts = [label.cget("text") for label in _widgets(modal, ctk.CTkLabel)]
+        self.assertIn("Historial de carreras", texts)
+        self.assertIn("4.20 EUR", texts)
+        self.assertIn("2.50 EUR", texts)
+        self.assertIn("120 s", texts)
+
+    def test_history_modal_shows_an_empty_state(self) -> None:
+        modal = self.open_history([])
+
+        texts = [label.cget("text") for label in _widgets(modal, ctk.CTkLabel)]
+        self.assertIn("Todavia no hay carreras registradas.", texts)
+
+    def test_history_read_error_is_reported(self) -> None:
+        self.app.history.all.side_effect = RuntimeError("boom")
+
+        with patch.object(gui.messagebox, "showerror") as show_error:
+            with self.assertLogs(gui.logger, level="ERROR") as logs:
+                self.app._show_history()
+
+        self.assertIn("gui_history_read_error", "\n".join(logs.output))
+        show_error.assert_called_once_with("Error", "No se pudo consultar el historial")
 
 
 if __name__ == "__main__":
