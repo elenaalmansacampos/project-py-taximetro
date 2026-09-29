@@ -5,6 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
+import customtkinter as ctk
+
 from taximeter import gui
 from taximeter.auth import PasswordAuth
 from taximeter.config import Rates
@@ -26,8 +28,14 @@ class FakeClock:
         self.value += seconds
 
 
-def _children_of_type(root: tk.Misc, widget_type: type) -> list:
-    return [child for child in root.winfo_children() if isinstance(child, widget_type)]
+def _widgets(widget: tk.Misc, widget_type: type) -> list:
+    """Busca widgets de tipo en todo el arbol, no solo entre los hijos directos."""
+    found: list = []
+    for child in widget.winfo_children():
+        if isinstance(child, widget_type):
+            found.append(child)
+        found.extend(_widgets(child, widget_type))
+    return found
 
 
 def _pump_until(root: tk.Misc, predicate, timeout: float = 5.0) -> bool:
@@ -43,7 +51,7 @@ def _pump_until(root: tk.Misc, predicate, timeout: float = 5.0) -> bool:
 class GuiTestCase(unittest.TestCase):
     def setUp(self) -> None:
         try:
-            self.root = tk.Tk()
+            self.root = ctk.CTk()
         except tk.TclError as error:
             self.skipTest(f"Sin display disponible: {error}")
         self.root.withdraw()
@@ -54,6 +62,15 @@ class GuiTestCase(unittest.TestCase):
         self.credentials_path = Path(directory.name) / "credentials.json"
         self.auth = PasswordAuth(self.credentials_path)
         self.clock = FakeClock()
+
+    def entries(self) -> list[ctk.CTkEntry]:
+        return _widgets(self.root, ctk.CTkEntry)
+
+    def buttons(self) -> list[ctk.CTkButton]:
+        return _widgets(self.root, ctk.CTkButton)
+
+    def label_texts(self) -> list[str]:
+        return [label.cget("text") for label in _widgets(self.root, ctk.CTkLabel)]
 
     def build_meter_app(self, real_clock: bool = False) -> gui.TaximeterApp:
         app = gui.TaximeterApp.__new__(gui.TaximeterApp)
@@ -70,20 +87,17 @@ class GuiTestCase(unittest.TestCase):
         return self.build_meter_app()
 
     def submit(self, password: str, repeated: str | None = None) -> None:
-        entries = _children_of_type(self.root, tk.Entry)
+        entries = self.entries()
         entries[0].insert(0, password)
         entries[1].insert(0, password if repeated is None else repeated)
-        _children_of_type(self.root, tk.Button)[-1].invoke()
+        self.buttons()[-1].invoke()
 
     def submit_login(self, password: str) -> None:
-        _children_of_type(self.root, tk.Entry)[0].insert(0, password)
-        _children_of_type(self.root, tk.Button)[-1].invoke()
+        self.entries()[0].insert(0, password)
+        self.buttons()[-1].invoke()
 
-    def labels_text(self) -> list[str]:
-        return [label.cget("text") for label in _children_of_type(self.root, tk.Label)]
-
-    def meter_buttons(self) -> list[tk.Button]:
-        return _children_of_type(self.root.winfo_children()[-1], tk.Button)
+    def meter_buttons(self) -> list[ctk.CTkButton]:
+        return self.buttons()
 
 
 class RealTimeCounterTest(GuiTestCase):
@@ -96,19 +110,18 @@ class RealTimeCounterTest(GuiTestCase):
         app._show_meter()
         app._refresh()
 
-        self.assertEqual(
-            self.labels_text(),
-            ["Estado: en movimiento", "6.00 EUR", "120 s"],
-        )
+        self.assertEqual(app.status_label.cget("text"), "Estado: en movimiento")
+        self.assertEqual(app.amount_label.cget("text"), "6.00 EUR")
+        self.assertEqual(app.time_label.cget("text"), "120 s")
 
     def test_meter_shows_idle_state_without_active_trip(self) -> None:
         app = self.build_meter_app()
 
         app._show_meter()
 
-        self.assertEqual(
-            self.labels_text(), ["Sin carrera activa", "0.00 EUR", "0 s"]
-        )
+        self.assertEqual(app.status_label.cget("text"), "Sin carrera activa")
+        self.assertEqual(app.amount_label.cget("text"), "0.00 EUR")
+        self.assertEqual(app.time_label.cget("text"), "0 s")
 
     def test_refresh_reschedules_itself_every_500_ms(self) -> None:
         app = self.build_meter_app()
@@ -159,13 +172,15 @@ class RealTimeCounterTest(GuiTestCase):
         app = self.build_meter_app()
 
         app._show_meter()
+        self.root.update_idletasks()
         buttons = self.meter_buttons()
 
         self.assertEqual(len(buttons), 5)
         for button in buttons:
             with self.subTest(boton=button.cget("text")):
-                self.assertEqual(int(button.cget("height")), 3)
+                self.assertEqual(int(button.cget("height")), 48)
                 self.assertGreaterEqual(button.winfo_reqwidth(), 100)
+                self.assertGreaterEqual(button.winfo_reqheight(), 40)
 
 
 class PasswordSetupTest(GuiTestCase):
@@ -173,12 +188,12 @@ class PasswordSetupTest(GuiTestCase):
         app = self.build_login_app()
 
         app._show_setup()
-        self.assertIn("Crear contraseña", self.labels_text())
+        self.assertIn("Crear contraseña", self.label_texts())
 
         self.submit("secreto123")
 
         self.assertTrue(self.auth.verify("secreto123"))
-        self.assertIn("Sin carrera activa", self.labels_text())
+        self.assertIn("Sin carrera activa", self.label_texts())
 
     def test_mismatched_passwords_are_reported_and_nothing_is_saved(self) -> None:
         app = self.build_login_app()
@@ -189,7 +204,7 @@ class PasswordSetupTest(GuiTestCase):
 
         show_error.assert_called_once_with("Error", "Las contraseñas no coinciden")
         self.assertFalse(self.credentials_path.exists())
-        self.assertIn("Crear contraseña", self.labels_text())
+        self.assertIn("Crear contraseña", self.label_texts())
 
     def test_short_passwords_are_reported_and_nothing_is_saved(self) -> None:
         app = self.build_login_app()
@@ -214,7 +229,7 @@ class PasswordSetupTest(GuiTestCase):
 
         self.assertIn("gui_credentials_write_error", "\n".join(logs.output))
         self.assertIn("No se pudo guardar la contraseña", show_error.call_args[0][1])
-        self.assertIn("Crear contraseña", self.labels_text())
+        self.assertIn("Crear contraseña", self.label_texts())
 
 
 class LoginTest(GuiTestCase):
@@ -223,11 +238,11 @@ class LoginTest(GuiTestCase):
         app = self.build_login_app()
 
         app._show_login()
-        self.assertIn("TaxiTech Taximetro", self.labels_text())
+        self.assertIn("TaxiTech Taximetro", self.label_texts())
 
         self.submit_login("secreto123")
 
-        self.assertIn("Sin carrera activa", self.labels_text())
+        self.assertIn("Sin carrera activa", self.label_texts())
 
     def test_wrong_password_is_reported_and_keeps_the_login_screen(self) -> None:
         self.auth.create_password("secreto123")
@@ -240,7 +255,7 @@ class LoginTest(GuiTestCase):
 
         self.assertIn("gui_login_failed", "\n".join(logs.output))
         show_error.assert_called_once_with("Error", "Contraseña incorrecta")
-        self.assertIn("TaxiTech Taximetro", self.labels_text())
+        self.assertIn("TaxiTech Taximetro", self.label_texts())
         self.assertFalse(hasattr(app, "amount_label"))
 
 
@@ -255,7 +270,7 @@ class CorruptCredentialsRecoveryTest(GuiTestCase):
                 patch.object(gui, "PasswordAuth", return_value=self.auth):
             gui.TaximeterApp(self.root)
 
-        self.assertIn("Restablecer contraseña", self.labels_text())
+        self.assertIn("Restablecer contraseña", self.label_texts())
 
     def test_login_on_damaged_credentials_falls_back_to_reset(self) -> None:
         self.auth.create_password("secreto123")
@@ -269,7 +284,7 @@ class CorruptCredentialsRecoveryTest(GuiTestCase):
 
         self.assertIn("gui_credentials_corrupted", "\n".join(logs.output))
         self.assertIn("dañado", show_error.call_args[0][1])
-        self.assertIn("Restablecer contraseña", self.labels_text())
+        self.assertIn("Restablecer contraseña", self.label_texts())
 
     def test_reset_creates_new_credentials_and_opens_the_meter(self) -> None:
         self.corrupt_credentials()
@@ -279,14 +294,14 @@ class CorruptCredentialsRecoveryTest(GuiTestCase):
         self.submit("nueva1234")
 
         self.assertTrue(self.auth.verify("nueva1234"))
-        self.assertIn("Sin carrera activa", self.labels_text())
+        self.assertIn("Sin carrera activa", self.label_texts())
 
     def test_startup_without_credentials_shows_the_creation_form(self) -> None:
         with patch.object(gui, "load_rates", return_value=Rates(STOPPED_RATE, MOVING_RATE)), \
                 patch.object(gui, "PasswordAuth", return_value=self.auth):
             gui.TaximeterApp(self.root)
 
-        self.assertIn("Crear contraseña", self.labels_text())
+        self.assertIn("Crear contraseña", self.label_texts())
 
     def test_startup_with_valid_credentials_shows_login(self) -> None:
         self.auth.create_password("secreto123")
@@ -295,7 +310,7 @@ class CorruptCredentialsRecoveryTest(GuiTestCase):
                 patch.object(gui, "PasswordAuth", return_value=self.auth):
             gui.TaximeterApp(self.root)
 
-        self.assertIn("TaxiTech Taximetro", self.labels_text())
+        self.assertIn("TaxiTech Taximetro", self.label_texts())
 
 
 if __name__ == "__main__":
