@@ -76,8 +76,9 @@ falla, muestra las ultimas lineas del contenedor y termina con codigo distinto
 de cero.
 
 Desde una copia limpia del repositorio, sin imagen previa, el comando construye
-la imagen, instala las dependencias declaradas en `requirements.txt`, prepara
-los directorios persistentes y deja el servicio disponible y verificado.
+la imagen, instala el paquete declarado en `pyproject.toml` (sin dependencias
+externas), prepara los directorios persistentes y deja el servicio disponible y
+verificado.
 
 ## Comandos disponibles
 

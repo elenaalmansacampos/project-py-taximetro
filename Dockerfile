@@ -13,15 +13,15 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Se instala el paquete desde pyproject.toml. Las dependencias base estan
+# vacias a proposito: la imagen no necesita nada de la biblioteca estandar.
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+RUN pip install --no-cache-dir .
 
 COPY main.py ./
-COPY src/ ./src/
 COPY config/ ./config/
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-
-ENV PYTHONPATH=/app/src
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && groupadd --system taximetro \

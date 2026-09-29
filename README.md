@@ -38,11 +38,21 @@
 - 📁 **Histórico persistente** en `data/historial_carreras.csv`.
 - ⚙️ **Tarifas configurables** en `config/tarifas.json`.
 - 📝 **Logs técnicos** en `logs/taximetro.log`.
-- ✅ **62 tests automatizados** con `unittest`.
+- ✅ **159 tests automatizados** con `unittest`.
 
 ---
 
 ## 🚀 Uso rápido
+
+El taximetro se puede usar sin instalar nada: `python3 main.py` funciona
+directamente desde el repositorio. Para instalarlo como paquete:
+
+```bash
+pip install -e .            # base: sin dependencias externas
+pip install -e ".[gui]"     # anade customtkinter para la GUI
+```
+
+Instalado, aparece el comando `taximetro`, equivalente a `python3 main.py`.
 
 ### CLI
 
@@ -122,9 +132,14 @@ requiere contrasena, con el mismo aviso que la API.
 ## Uso GUI
 
 ```bash
-pip install -r requirements.txt   # primera vez
+pip install -e ".[gui]"   # primera vez, instala customtkinter
 python3 main.py --gui
 ```
+
+La GUI es la única parte que necesita una dependencia externa
+(`customtkinter`), y va en el extra `gui` para que el despliegue en
+contenedor, que no la usa, no la instale. Sin ese extra, `python3 main.py`
+arranca igual, pero `--gui` falla al importar `customtkinter`.
 
 La primera ejecución solicita crear y confirmar una contraseña; en las siguientes, la GUI requiere autenticarse antes de mostrar el taxímetro. Si la contraseña es incorrecta muestra un error y permite reintentar (se puede confirmar con la tecla <kbd>Enter</kbd>).
 
@@ -265,7 +280,7 @@ flowchart TD
 │   ├── github-project-tasks.md
 │   └── prod-04-despliegue.md
 ├── main.py
-├── requirements.txt
+├── pyproject.toml
 ├── src/taximeter/
 │   ├── domain/            # sin dependencias: reglas de negocio
 │   │   ├── rates.py

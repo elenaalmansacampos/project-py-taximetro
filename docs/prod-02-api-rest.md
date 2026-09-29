@@ -166,6 +166,12 @@ evento `api_trips_error`.
 
 ## Decisiones
 
+- **Ubicacion del codigo:** el servidor vive en
+  `src/taximeter/interfaces/api.py` y el panel que sirve en
+  `src/taximeter/interfaces/web/panel.py`. El historial le llega como
+  `HistoryRepository`, definido en `src/taximeter/application/ports.py`, de modo
+  que la API no sabe si las carreras estan en SQLite o en CSV. La CLI la
+  arranca desde `src/taximeter/interfaces/cli.py` con `--api`.
 - **Motor HTTP:** `ThreadingHTTPServer` de la biblioteca estandar. No se anade
   Flask ni FastAPI para conservar la ejecucion sin dependencias externas.
 - **Solo lectura:** el unico endpoint devuelve datos. No existe forma de crear,
