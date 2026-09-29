@@ -17,9 +17,11 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py ./
-COPY taximeter/ ./taximeter/
+COPY src/ ./src/
 COPY config/ ./config/
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+ENV PYTHONPATH=/app/src
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && groupadd --system taximetro \
@@ -34,7 +36,7 @@ VOLUME ["/var/lib/taximetro"]
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ["python3", "-m", "taximeter.healthcheck", "--json"]
+    CMD ["python3", "-m", "taximeter.interfaces.healthcheck", "--json"]
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]

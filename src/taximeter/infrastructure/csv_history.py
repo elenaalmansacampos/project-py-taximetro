@@ -1,33 +1,18 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol, runtime_checkable
 
-from taximeter import paths
-from taximeter.taximeter import TripSummary
+from taximeter.application.ports import HistoryEntry
+from taximeter.domain.taximeter import TripSummary
+from taximeter.infrastructure import paths
 
 
 CSV_HISTORY_PATH = paths.history_path()
 HISTORY_PATH = CSV_HISTORY_PATH
 
-
-@dataclass(frozen=True)
-class HistoryEntry:
-    date: str
-    duration_seconds: float
-    amount: float
-
-
-@runtime_checkable
-class HistoryRepository(Protocol):
-    """Contrato minimo que la CLI y la GUI necesitan para leer y guardar carreras."""
-
-    def add(self, summary: TripSummary) -> None: ...
-
-    def all(self) -> list[HistoryEntry]: ...
+__all__ = ["CSV_HISTORY_PATH", "HISTORY_PATH", "CsvTripHistory"]
 
 
 class CsvTripHistory:
@@ -67,4 +52,3 @@ class CsvTripHistory:
 
 
 TripHistory = CsvTripHistory
-

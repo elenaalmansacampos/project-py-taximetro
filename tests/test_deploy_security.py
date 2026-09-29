@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from taximeter.auth import PasswordAuth
+from taximeter.infrastructure.auth import PasswordAuth
 
 
 class CredentialsPermissionsTest(unittest.TestCase):

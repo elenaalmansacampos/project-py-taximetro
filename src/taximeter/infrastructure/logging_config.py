@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from taximeter import paths
+from taximeter.infrastructure import paths
 
 
 LOG_PATH = paths.log_path()

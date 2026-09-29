@@ -7,8 +7,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from taximeter import healthcheck
-from taximeter.config import RatesConfigurationError
+from taximeter.domain.taximeter import TripSummary
+from taximeter.infrastructure.config import RatesConfigurationError
+from taximeter.infrastructure.database import TripHistory
+from taximeter.interfaces import healthcheck
 
 
 RATES = {"stopped_rate_per_second": 0.02, "moving_rate_per_second": 0.05}
@@ -68,26 +70,27 @@ class HealthyDeploymentTest(HealthCheckTestCase):
 
 
 class PersistentDataTest(HealthCheckTestCase):
-    def write_history(self, content: str) -> Path:
-        path = self.home / "data" / "historial_carreras.csv"
+    def write_history(self, entries: int) -> Path:
+        path = self.home / "data" / "taximetro.db"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        history = TripHistory(path)
+        for index in range(entries):
+            history.add(
+                TripSummary(duration_seconds=30.0 + index, amount=1.20 + index)
+            )
         return path
 
     def test_the_history_is_read_from_the_persistent_root(self) -> None:
-        self.write_history(
-            "date,duration_seconds,amount\n2026-09-25T10:30:00,30,1.20\n"
-        )
+        self.write_history(1)
 
         results = {result.name: result for result in healthcheck.run_checks()}
 
         self.assertIn("1 carreras legibles", results["history_readable"].detail)
 
     def test_an_unreadable_history_fails_with_its_own_code(self) -> None:
-        self.write_history(
-            "date,duration_seconds,amount\n"
-            "2026-09-25T10:30:00,treinta-y-tantos,1.20\n"
-        )
+        self.write_history(1)
+        # SQLite no admite esto: el fichero existe pero no se puede abrir.
+        (self.home / "data" / "taximetro.db").write_bytes(b"esto no es una base de datos")
 
         code, output = self.run_check()
 
@@ -140,7 +143,7 @@ class ConfigurationTest(HealthCheckTestCase):
         self.assertIn("taximeter", output)
 
     def test_a_wrong_calculation_fails_with_its_own_code(self) -> None:
-        from taximeter.taximeter import TripSummary
+        from taximeter.domain.taximeter import TripSummary
 
         broken = lambda rates, clock=None: type(
             "Roto",

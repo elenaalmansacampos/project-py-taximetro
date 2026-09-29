@@ -6,10 +6,10 @@ from typing import Callable
 
 import customtkinter as ctk
 
-from taximeter.auth import CorruptCredentialsError, PasswordAuth
-from taximeter.config import RatesConfigurationError, load_rates
-from taximeter.database import TripHistory
-from taximeter.taximeter import TaxiStatus, Taximeter
+from taximeter.infrastructure.auth import CorruptCredentialsError, PasswordAuth
+from taximeter.infrastructure.config import RatesConfigurationError, load_rates
+from taximeter.infrastructure.database import TripHistory
+from taximeter.domain.taximeter import TaxiStatus, Taximeter
 
 
 logger = logging.getLogger(__name__)

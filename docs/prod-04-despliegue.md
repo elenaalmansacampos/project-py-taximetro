@@ -30,7 +30,7 @@ modo que si algo se rompe despues del despliegue el servicio pasa a
 |---|---|---|
 | CLI (`main.py`) | Desplegada | Se ejecuta con `make cli` |
 | Interfaz grafica (`--gui`) | Incluida en la imagen | `import tkinter` y version de Tcl/Tk |
-| Comprobacion de operatividad | Sin pantalla | `python3 -m taximeter.healthcheck` |
+| Comprobacion de operatividad | Sin pantalla | `python3 -m taximeter.interfaces.healthcheck` |
 
 La comprobacion automatica **nunca abre una ventana**: importa `tkinter` y lee su
 version, pero no instancia `Tk()`. Eso permite validar la GUI en un contenedor
@@ -112,7 +112,7 @@ explicitamente.
 Fuera de Docker, la misma variable permite separar los datos del codigo:
 
 ```bash
-TAXIMETER_HOME=var python3 -m taximeter.healthcheck
+TAXIMETER_HOME=var python3 -m taximeter.interfaces.healthcheck
 ```
 
 En el despliegue, la primera vez se copia `config/tarifas.json` del repositorio
@@ -123,7 +123,7 @@ configurar.
 
 ## Comprobacion de operatividad
 
-`python3 -m taximeter.healthcheck` valida, sin abrir ventana y sin pedir
+`python3 -m taximeter.interfaces.healthcheck` valida, sin abrir ventana y sin pedir
 contrasena:
 
 1. version de Python (3.10 o superior)

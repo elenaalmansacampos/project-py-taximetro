@@ -7,16 +7,17 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from taximeter import cli, database, gui
-from taximeter.database import TripHistory
-from taximeter.history import HistoryEntry
-from taximeter.migration import (
+from taximeter.application.ports import HistoryEntry
+from taximeter.infrastructure import database
+from taximeter.infrastructure.database import TripHistory
+from taximeter.infrastructure.migration import (
     MigrationError,
     MigrationReport,
     RejectedRecord,
     format_migration_report,
     migrate_csv_to_database,
 )
+from taximeter.interfaces import cli, gui
 
 
 class HistoryMigrationTest(unittest.TestCase):

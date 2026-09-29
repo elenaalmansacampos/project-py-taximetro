@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable
 
-from taximeter.config import Rates
+from taximeter.domain.rates import Rates
 
 
 class TaxiStatus(str, Enum):

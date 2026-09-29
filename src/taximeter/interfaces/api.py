@@ -7,8 +7,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlsplit
 
-from taximeter import panel
-from taximeter.history import HistoryEntry, HistoryRepository
+from taximeter.interfaces.web import panel
+from taximeter.application.ports import HistoryEntry, HistoryRepository
 
 
 logger = logging.getLogger(__name__)

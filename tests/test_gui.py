@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 
 import customtkinter as ctk
 
-from taximeter import gui
-from taximeter.auth import PasswordAuth
-from taximeter.config import Rates
-from taximeter.taximeter import Taximeter, TaxiStatus
+from taximeter.interfaces import gui
+from taximeter.infrastructure.auth import PasswordAuth
+from taximeter.infrastructure.config import Rates
+from taximeter.domain.taximeter import Taximeter, TaxiStatus
 
 
 STOPPED_RATE = 0.02
