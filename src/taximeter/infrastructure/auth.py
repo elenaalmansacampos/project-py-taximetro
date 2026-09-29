@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from taximeter import paths
+from taximeter.infrastructure import paths
 
 
 CREDENTIALS_PATH = paths.credentials_path()

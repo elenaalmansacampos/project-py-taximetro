@@ -13,11 +13,13 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Se instala el paquete desde pyproject.toml. Las dependencias base estan
+# vacias a proposito: la imagen no necesita nada de la biblioteca estandar.
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+RUN pip install --no-cache-dir .
 
 COPY main.py ./
-COPY taximeter/ ./taximeter/
 COPY config/ ./config/
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
@@ -34,7 +36,7 @@ VOLUME ["/var/lib/taximetro"]
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ["python3", "-m", "taximeter.healthcheck", "--json"]
+    CMD ["python3", "-m", "taximeter.interfaces.healthcheck", "--json"]
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]

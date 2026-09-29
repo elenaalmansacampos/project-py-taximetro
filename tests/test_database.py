@@ -5,9 +5,9 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-from taximeter.database import TripHistory
-from taximeter.history import HistoryEntry
-from taximeter.taximeter import TripSummary
+from taximeter.infrastructure.database import TripHistory
+from taximeter.application.ports import HistoryEntry
+from taximeter.domain.taximeter import TripSummary
 
 
 class DatabaseHistoryTest(unittest.TestCase):
@@ -20,7 +20,7 @@ class DatabaseHistoryTest(unittest.TestCase):
     def test_add_and_read_from_a_new_repository_instance(self) -> None:
         summary = TripSummary(duration_seconds=30.456, amount=1.234)
 
-        with patch("taximeter.database.datetime") as datetime_mock:
+        with patch("taximeter.infrastructure.database.datetime") as datetime_mock:
             datetime_mock.now.return_value.isoformat.return_value = (
                 "2026-09-25T10:30:00"
             )
@@ -42,7 +42,7 @@ class DatabaseHistoryTest(unittest.TestCase):
     def test_new_entries_are_not_deduplicated(self) -> None:
         summary = TripSummary(duration_seconds=30, amount=1.20)
 
-        with patch("taximeter.database.datetime") as datetime_mock:
+        with patch("taximeter.infrastructure.database.datetime") as datetime_mock:
             datetime_mock.now.return_value.isoformat.return_value = (
                 "2026-09-25T10:30:00"
             )

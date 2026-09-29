@@ -7,9 +7,9 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
-from taximeter import paths
-from taximeter.history import HistoryEntry
-from taximeter.taximeter import TripSummary
+from taximeter.infrastructure import paths
+from taximeter.application.ports import HistoryEntry
+from taximeter.domain.taximeter import TripSummary
 
 
 DEFAULT_DATABASE_PATH = paths.database_path()

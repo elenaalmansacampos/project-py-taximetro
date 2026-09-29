@@ -115,6 +115,10 @@ funcione, el panel vuelve a mostrar la tabla.
 
 ## Decisiones
 
+- **Ubicacion del codigo:** el renderizado del panel vive en
+  `src/taximeter/interfaces/web/panel.py` y lo sirve
+  `src/taximeter/interfaces/api.py` en la misma ruta `/`. Las filas del listado
+  son `HistoryEntry` de `src/taximeter/application/ports.py`.
 - **HTML generado en el servidor:** el navegador no ejecuta JavaScript. Asi el
   panel funciona sin permisos especiales, funciona offline y el HTML que llega
   al navegador ya contiene los datos reales, sin la posibilidad de que un fallo

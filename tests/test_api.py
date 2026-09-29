@@ -10,10 +10,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
-from taximeter import api, cli
-from taximeter.database import TripHistory
-from taximeter.history import HistoryEntry
-from taximeter.taximeter import TripSummary
+from taximeter.application.ports import HistoryEntry
+from taximeter.domain.taximeter import TripSummary
+from taximeter.infrastructure.database import TripHistory
+from taximeter.interfaces import api, cli, gui
 
 
 def request(url: str, method: str = "GET"):
@@ -213,7 +213,7 @@ class ApiCliTest(unittest.TestCase):
             patch.object(cli, "configure_logging"),
             patch.object(cli, "run_api") as run_api,
             patch.object(cli, "run_cli") as run_cli,
-            patch.object(cli, "run_gui") as run_gui,
+            patch.object(gui, "run_gui") as run_gui,
         ):
             cli.main()
 

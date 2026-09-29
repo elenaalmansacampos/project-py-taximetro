@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from taximeter.auth import (
+from taximeter.infrastructure.auth import (
     CREDENTIALS_FILE_MODE,
     MINIMUM_PASSWORD_LENGTH,
     PBKDF2_ITERATIONS,
