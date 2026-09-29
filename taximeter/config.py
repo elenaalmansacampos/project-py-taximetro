@@ -5,8 +5,10 @@ import math
 from dataclasses import dataclass
 from pathlib import Path
 
+from taximeter import paths
 
-DEFAULT_CONFIG_PATH = Path("config/tarifas.json")
+
+DEFAULT_CONFIG_PATH = paths.rates_path()
 RATE_KEYS = ("stopped_rate_per_second", "moving_rate_per_second")
 
 

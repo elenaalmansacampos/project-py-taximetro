@@ -10,9 +10,10 @@ import os
 from pathlib import Path
 from typing import Any
 
+from taximeter import paths
 
-CREDENTIALS_PATH = Path("data/credentials.json")
-MIN_PASSWORD_LENGTH = 4
+
+CREDENTIALS_PATH = paths.credentials_path()
 PBKDF2_ITERATIONS = 600_000
 MINIMUM_PASSWORD_LENGTH = 4
 CREDENTIALS_FILE_MODE = 0o600
@@ -38,26 +39,17 @@ class PasswordAuth:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         salt = os.urandom(16)
         password_hash = _hash_password(password, salt)
-        self._write_payload(
-            {
-                "salt": base64.b64encode(salt).decode("ascii"),
-                "password_hash": base64.b64encode(password_hash).decode("ascii"),
-                "iterations": PBKDF2_ITERATIONS,
-            }
-        )
+        payload = {
+            "salt": base64.b64encode(salt).decode("ascii"),
+            "password_hash": base64.b64encode(password_hash).decode("ascii"),
+            "iterations": PBKDF2_ITERATIONS,
+        }
 
-    def load(self) -> dict[str, Any] | None:
-        """Devuelve el contenido almacenado, o None si falta o es ilegible."""
-        if not self.path.exists():
-            return None
-
-        try:
-            with self.path.open("r", encoding="utf-8") as file:
-                payload = json.load(file)
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            return None
-
-        return payload if _is_valid_payload(payload) else None
+        temporary = self.path.with_name(self.path.name + ".tmp")
+        with temporary.open("w", encoding="utf-8") as file:
+            json.dump(payload, file, indent=2)
+        temporary.chmod(0o600)
+        temporary.replace(self.path)
 
     def verify(self, password: str) -> bool:
         salt, expected_hash, iterations = self._read_credentials()

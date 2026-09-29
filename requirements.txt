@@ -1,1 +1,9 @@
-customtkinter==6.0.0
+# Dependencias del taximetro.
+#
+# El taximetro funciona solo con la biblioteca estandar de Python:
+# la CLI, la interfaz grafica (tkinter), el historial y los logs no
+# usan ninguna libreria de terceros.
+#
+# Este fichero existe para que el despliegue instale las dependencias
+# de forma explicita y automatica. Anade aqui cualquier libreria externa
+# que se introduzca en el futuro.
