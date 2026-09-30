@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/gui-customtkinter-1F6FEB?style=flat-square" alt="GUI con customtkinter">
-  <img src="https://img.shields.io/badge/tests-159%20OK-4C1?style=flat-square" alt="159 tests OK">
+  <img src="https://img.shields.io/badge/tests-165%20OK-4C1?style=flat-square" alt="165 tests OK">
   <img src="https://img.shields.io/badge/historias-9%2F9-6f42c1?style=flat-square" alt="9 de 9 historias">
   <img src="https://img.shields.io/badge/fase-3%20Arquitectura%20y%20UX-orange?style=flat-square" alt="Fase 3">
 </p>
@@ -38,7 +38,7 @@
 - 📁 **Histórico persistente** en `data/historial_carreras.csv`.
 - ⚙️ **Tarifas configurables** en `config/tarifas.json`.
 - 📝 **Logs técnicos** en `logs/taximetro.log`.
-- ✅ **159 tests automatizados** con `unittest`.
+- ✅ **165 tests automatizados** con `unittest`.
 
 ---
 
@@ -214,10 +214,17 @@ make check
 ## Tests
 
 ```bash
-python3 -m unittest
+make test
+
+# o sin el Makefile:
+python3 -m unittest discover -s tests -t .
 ```
 
-> **159 tests OK** — cubren dominio, configuración, autenticación, histórico, logging y las dos interfaces (CLI y GUI).
+<p align="center">
+  <img src="image.png" alt="Captura del taxímetro" width="700">
+</p>
+
+> **165 tests OK** — cubren dominio, configuración, autenticación, histórico, logging y las dos interfaces (CLI y GUI).
 
 ---
 
@@ -341,3 +348,12 @@ flowchart TD
 Fase 4 documentada: el despliegue reproducible con un comando esta en PROD-04. La
 API REST (PROD-02) y el panel web (PROD-03) siguen developing en sus respectivas
 ramas.
+
+---
+
+## 👩💻 Autora
+
+**Elena Almansa** · TaxiTech Solutions
+
+[![GitHub](https://img.shields.io/badge/GitHub-elenaalmansacampos-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/elenaalmansacampos)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Elena%20Almansa-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/elena-almansa-5315a017/)
